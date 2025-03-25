@@ -20,6 +20,9 @@
 - 6×6 starting board with dynamic expansion (7×7 with Expander tile)
 - Randomized tile spawning (numbers 1–5)
 - Special characters with unique effects (e.g., Blaster, Doubler, Painter, Expander)
+- Smooth animations for tile spawning, merging, and splitting
+- Enhanced tile visuals with dynamic brightness and outlines
+- Subtle grid background and cell indicators for better clarity
 - Simple scoring system with combo bonuses
 - Clean, modern visual style
 - Designed for infinite play and challenge modes
@@ -52,16 +55,37 @@
 1. Clone the repo:
    ```bash
    git clone https://github.com/olmstedian/Tilebreakers.git
+   ```
 
-2.	Open the project in Unity 2022.3+
+2. Open the project in Unity 2022.3+
 
-3.	Load the Scenes/Game.unity
+3. Load the `Scenes/Game.unity`
 
-4.	Press Play to start testing
+4. Press Play to start testing
+
+---
+
+## ✅ Recent Additions
+
+### Tile Enhancements
+- **Dynamic Brightness**: Tiles brighten slightly as their numbers increase, creating a visual hierarchy.
+- **Text Outlines**: Improved text readability with subtle outlines.
+- **Animations**:
+  - Smooth spawn animation when tiles appear.
+  - Pulse animation for merges.
+  - Smooth movement animations for tile transitions.
+
+### Grid and Cell Improvements
+- **Grid Background**: Uniform light gray background for all cells.
+- **Cell Indicators**: Subtle scaling and layering for better visual clarity.
+
+---
 
 ## 📋 DEVLOG
 
 Track day-to-day development progress in **DEVLOG.md**
+
+---
 
 ## ✅ Roadmap (MVP)
 
@@ -73,9 +97,7 @@ Track day-to-day development progress in **DEVLOG.md**
 - Challenge mode & unlocks
 - Mobile input optimizations
 
-## 📬 License
-
-This is a private project under development. Licensing terms TBD.
+---
 
 ## 📘 Game Concept Document – Tilebreakers
 
@@ -262,28 +284,25 @@ Rarity: ~5% chance per split to generate the rare tile
 - [x] Implement `GameManager`, `BoardManager`, `InputManager`
     - [x] GameManager controls game flow, score tracking, and turn sequence
     - [x] BoardManager maintains grid state and tile positions
-    - [ ] Create a 6x6 tile grid
-        - [ ] Grid cells with proper spacing (15-20px gaps between cells)
-        - [ ] Visual cell indicators (light borders or background shading)
-        - [ ] Implement grid container with dynamic sizing based on screen dimensions
-        - [ ] Add subtle grid background pattern for visual clarity
+    - [x] Create a 6x6 tile grid
+        - [x] Grid cells with proper spacing (15-20px gaps between cells)
+        - [x] Visual cell indicators (light borders or background shading)
+        - [x] Implement grid container with dynamic sizing based on screen dimensions
+        - [x] Add subtle grid background pattern for visual clarity
     - [ ] Position tracking system
-        - [ ] Vector2Int coordinates for logical grid positions
-        - [ ] Convert between world space and grid coordinates
-        - [ ] Implement efficient lookup for tiles at specific positions
-        - [ ] Track occupied vs empty cell states
+        - [x] Vector2Int coordinates for logical grid positions
+        - [x] Convert between world space and grid coordinates
+        - [x] Implement efficient lookup for tiles at specific positions
+        - [x] Track occupied vs empty cell states
     - [ ] Empty cell detection system
-        - [ ] O(1) lookup method for finding empty cells
-        - [ ] Queue-based system for prioritizing certain spawn locations
-        - [ ] Method to find nearest empty cells to a given position (for splits)
+        - [x] O(1) lookup method for finding empty cells
+        - [x] Queue-based system for prioritizing certain spawn locations
+        - [x] Method to find random empty cells to a given position (for splits)
     - [ ] Generate 3–5 random starting tiles
-        - [ ] Random number generator (values 1-5)
-        - [ ] Color selection from predefined palette (4 base colors)
-        - [ ] Strategic initial placement algorithm (avoid immediate merges)
-        - [ ] Smooth spawn-in animation
-    - [ ] Random number generator with appropriate distribution
-    - [ ] Initial color assignment (4 primary colors)
-    - [ ] Placement algorithm for starting positions
+        - [x] Random number generator (values 1-5)
+        - [x] Color selection from predefined palette (4 base colors)
+        - [x] Strategic initial placement algorithm (avoid immediate merges)
+        - [x] Smooth spawn-in animation
 - [ ] Structure `Tile` prefab (color, number, movement range)
     - [x] SpriteRenderer for tile background and color with rounded corners
     - [x] TextMeshPro component for number display with optimized font settings
@@ -301,6 +320,13 @@ Rarity: ~5% chance per split to generate the rare tile
     - [ ] Implement game over overlay with restart functionality
     - [ ] Set up smooth transitions between UI states
     - [ ] Configure responsive layout for different screen orientations
+
+- [ ] Generate random tiles at the beginning
+    - [x] Create 3-5 tiles with random numbers (1-5)
+    - [x] Assign random colors from predefined palette
+    - [x] Place tiles evenly across the grid
+    - [x] Animate tiles appearing on the board
+    - [x] Ensure starting configuration has at least one valid move
 
 ---
 

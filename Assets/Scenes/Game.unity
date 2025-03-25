@@ -372,8 +372,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   width: 6
   height: 6
-  cellSpacing: 1.1
   tilePrefab: {fileID: 2294095823878119490, guid: b029b3fb8ad4240729ae547a800ef8e6, type: 3}
+  cellIndicatorPrefab: {fileID: 6235500655562812460, guid: 20eef428882ae4850a5d860694cd5d67, type: 3}
+  gridBackgroundPrefab: {fileID: 7062646120094328666, guid: 24f57b58011b14eaeb068e4a2ebd72ee, type: 3}
 --- !u!4 &1143691677
 Transform:
   m_ObjectHideFlags: 0
