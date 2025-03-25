@@ -1,0 +1,14 @@
+{
+  "files.exclude": {
+    "**/Library": true,
+    "**/Temp": true,
+    "**/Logs": true,
+    "**/obj": true
+  },
+  "search.exclude": {
+    "**/Library": true,
+    "**/Temp": true,
+    "**/obj": true
+  },
+  "editor.formatOnSave": true
+}
