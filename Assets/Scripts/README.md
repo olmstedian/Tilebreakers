@@ -1,18 +1,20 @@
 # Scripts Folder – Tilebreakers
 
-## Structure:
-- Core/: Game loop, input, board control
-- Tiles/: Base tile behavior, merge, move, spawn
-- SpecialTiles/: Special characters and powers
-- Grid/: Grid cell logic and board expansion
-- UI/: Score UI, menus, special tile interaction
-- FX/: VFX, SFX
-- Utils/: Helpers, enums, extensions
+## Directory Structure
+- **Core/**: Game loop, input handling, and board control systems
+- **Tiles/**: Base tile behaviors including merging, movement, and spawn logic
+- **SpecialTiles/**: Special character implementations and power-up systems
+- **Grid/**: Grid cell management and dynamic board expansion
+- **UI/**: Score display, menu systems, and special tile interaction interfaces
+- **FX/**: Visual effects and sound management
+- **Utils/**: Helper functions, enumerations, and extension methods
 
-## Naming Rules:
-- CamelCase for classes
-- snake_case for files if utility/helper
-- Verb-first for components (e.g., TileMover, BoardManager)
+## Naming Conventions
+- Use **PascalCase** for class names
+- Use **snake_case** for utility/helper files
+- Prefix component names with verbs (e.g., `TileMover`, `BoardManager`)
 
-## Flow:
-GameManager → InputManager → BoardManager → Tile logic → Grid updates → UI/FX
+## Execution Flow
+```
+GameManager → InputManager → BoardManager → Tile Logic → Grid Updates → UI/FX
+```
