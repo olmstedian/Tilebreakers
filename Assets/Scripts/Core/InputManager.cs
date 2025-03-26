@@ -4,8 +4,7 @@ public class InputManager : MonoBehaviour
 {
     public static InputManager Instance;
 
-    public Vector2 touchPosition;
-    public Vector2 startTouchPosition { get; private set; } // Add this property
+    public Vector2 touchPosition { get; private set; }
     private bool isSelecting;
 
     public delegate void TileSelectedAction(Vector2Int gridPosition);
@@ -30,25 +29,20 @@ public class InputManager : MonoBehaviour
         if (Input.touchCount > 0)
         {
             Touch touch = Input.GetTouch(0);
-
-            switch (touch.phase)
+            if (touch.phase == TouchPhase.Began)
             {
-                case TouchPhase.Began:
-                    startTouchPosition = touch.position; // Set startTouchPosition
-                    touchPosition = touch.position;
-                    isSelecting = true;
-                    DetectTileSelection();
-                    break;
-
-                case TouchPhase.Ended:
-                    isSelecting = false;
-                    ConfirmTileMove();
-                    break;
+                touchPosition = touch.position;
+                isSelecting = true;
+                DetectTileSelection();
+            }
+            else if (touch.phase == TouchPhase.Ended)
+            {
+                isSelecting = false;
+                ConfirmTileMove();
             }
         }
         else if (Input.GetMouseButtonDown(0)) // For testing in editor
         {
-            startTouchPosition = Input.mousePosition; // Set startTouchPosition
             touchPosition = Input.mousePosition;
             isSelecting = true;
             DetectTileSelection();
@@ -65,9 +59,10 @@ public class InputManager : MonoBehaviour
         Vector3 worldPosition = Camera.main.ScreenToWorldPoint(touchPosition);
         Vector2Int gridPosition = BoardManager.Instance.GetGridPositionFromWorldPosition(worldPosition);
 
-        if (BoardManager.Instance.IsWithinBounds(gridPosition))
+        if (BoardManager.Instance.IsWithinBounds(gridPosition) &&
+            GameStateManager.Instance?.IsInState<PlayerTurnState>() == true)
         {
-            OnTileSelected?.Invoke(gridPosition); // Notify listeners about the selected tile
+            OnTileSelected?.Invoke(gridPosition);
         }
     }
 
@@ -76,9 +71,10 @@ public class InputManager : MonoBehaviour
         Vector3 worldPosition = Camera.main.ScreenToWorldPoint(touchPosition);
         Vector2Int targetPosition = BoardManager.Instance.GetGridPositionFromWorldPosition(worldPosition);
 
-        if (BoardManager.Instance.IsWithinBounds(targetPosition))
+        if (BoardManager.Instance.IsWithinBounds(targetPosition) &&
+            GameStateManager.Instance?.IsInState<PlayerTurnState>() == true)
         {
-            OnTileMoveConfirmed?.Invoke(targetPosition); // Notify listeners about the confirmed move
+            OnTileMoveConfirmed?.Invoke(targetPosition);
         }
     }
 }

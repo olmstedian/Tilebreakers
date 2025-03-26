@@ -6,27 +6,31 @@ public class GameManager : MonoBehaviour
 {
     public static GameManager Instance;
 
+    [SerializeField] private GameObject gameStateManagerPrefab;
+
     private void Awake()
     {
         if (Instance == null) Instance = this;
         else Destroy(gameObject);
+
+        if (GameStateManager.Instance == null && gameStateManagerPrefab != null)
+        {
+            Instantiate(gameStateManagerPrefab);
+        }
     }
 
     void Start()
     {
-        // Initialize game (board, UI, etc.)
-        BoardManager.Instance.GenerateRandomStartingTiles();
+        Invoke(nameof(InitializeGame), 0.1f);
+    }
+
+    private void InitializeGame()
+    {
+        GameStateManager.Instance?.SetState(new InitState());
     }
 
     public void EndTurn()
     {
-        // Spawn one new tile using the constants-defined spawn count (1 tile)
-        BoardManager.Instance.GenerateRandomStartingTiles(1, 1);
-        // Check for game over
-        if (!BoardManager.Instance.HasValidMove())
-        {
-            Debug.Log("Game Over!");
-            // Trigger game over logic (e.g., show game over screen)
-        }
+        GameStateManager.Instance?.SetState(new PostTurnState());
     }
 }

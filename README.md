@@ -6,8 +6,7 @@
 
 ## 🎮 Gameplay Overview
 
-- **Swipe tiles** to move them up to their number value in any direction.
-- **Swipe distance** is calculated based on the grid's cell size, ensuring precise movement.
+- **Click tiles** to select and move them up to their number value in any direction.
 - **Merge same-colored tiles** to add their numbers together.
 - **Split** tiles when the value exceeds 12 into random tiles that total the original.
 - **Special tiles** spawn from splits and trigger game-changing abilities.
@@ -20,7 +19,7 @@
 
 - 6×6 starting board with dynamic expansion (7×7 with Expander tile)
 - Randomized tile spawning (numbers 1–5)
-- Special characters with unique effects (e.g., Blaster, Doubler, Painter, Expander)
+- Special tiles with unique effects (e.g., Blaster, Doubler, Painter, Expander)
 - Smooth animations for tile spawning, merging, and splitting
 - Enhanced tile visuals with dynamic brightness and outlines
 - Subtle grid background and cell indicators for better clarity
@@ -66,23 +65,26 @@
 
 ---
 
-## ✅ Recent Additions
+## ✅ Recent Updates
 
-### Swipe Enhancements
-- **Grid-Based Swipe Distance**: Swipe distance is now calculated using the grid's cell size, ensuring accurate and consistent movement across devices.
-- **Dynamic Movement**: Tiles move based on the swipe distance, limited by their number value.
+### Tile Splitting System
+- Implemented full tile splitting functionality when merged tiles exceed value 12.
+- Added logic for generating multiple new tiles with values that sum to the original.
+- Randomized color assignment for split tiles.
+- Optimized spawn positions to prioritize non-adjacent cells for better gameplay.
 
-### Tile Enhancements
-- **Dynamic Brightness**: Tiles brighten slightly as their numbers increase, creating a visual hierarchy.
-- **Text Outlines**: Improved text readability with subtle outlines.
-- **Animations**:
-  - Smooth spawn animation when tiles appear.
-  - Pulse animation for merges.
-  - Smooth movement animations for tile transitions.
+### Tile Number Display
+- Fixed issues with TextMeshPro components on spawned tiles.
+- Improved font loading and text visibility.
+- Enhanced verification processes to ensure numbers display correctly.
 
-### Grid and Cell Improvements
-- **Grid Background**: Uniform light gray background for all cells.
-- **Cell Indicators**: Subtle scaling and layering for better visual clarity.
+### Input System
+- Removed swipe-based input and replaced it with mouse click-based selection and movement.
+- Simplified controls for better testing and gameplay.
+
+### Movement Enhancements
+- Blocked valid move highlights beyond occupied cells.
+- Improved animations for tile movement and merging.
 
 ---
 
@@ -311,10 +313,10 @@ Rarity: ~5% chance per split to generate the rare tile
 - [ ] Structure `Tile` prefab (color, number, movement range)
     - [x] SpriteRenderer for tile background and color with rounded corners
     - [x] TextMeshPro component for number display with optimized font settings
-    - [ ] Movement range property matching tile number value (1-12)
-    - [ ] Basic animation components for transitions (scale, move, fade)
-    - [ ] Collision detection for merge interactions
-    - [ ] Visual indicator for maximum movement range on hover/selection
+    - [x] Movement range property matching tile number value (1-12)
+    - [x] Basic animation components for transitions (scale, move, fade)
+    - [x] Collision detection for merge interactions
+    - [x] Visual indicator for maximum movement range on hover/selection
     - [ ] State machine to handle idle, selected, moving, and merging states
 - [ ] Generate Canvas and UI Elements
     - [x] Create main game Canvas with appropriate CanvasScaler settings
@@ -346,9 +348,18 @@ Rarity: ~5% chance per split to generate the rare tile
 ---
 
 ### 🟨 Phase 4: Merge & Split Logic
-- [ ] Merge same-colored tiles when they collide.
-- [ ] Add numbers together on merge.
-- [ ] Split tiles when their value exceeds 12.
+- [x] Merge same-colored tiles when they collide.
+- [x] Add numbers together on merge.
+- [x] Split tiles when their value exceeds 12.
+- [ ] Add UI interaction to activate special tiles
+
+---
+
+### 🟨 Phase 6: Tile Spawning, Game Flow, and Game Over
+- [x] Spawn one random tile after each player move
+- [x] Skip spawn if `Freeze` is active
+- [x] Detect game over when board is full and no merges are possible
+- [x] Track and display current score
 
 ### 🟨 Phase 5: Special Tile System
 - [ ] Implement `SpecialTile` base class
@@ -360,25 +371,10 @@ Rarity: ~5% chance per split to generate the rare tile
 ---
 
 ### 🟨 Phase 6: Tile Spawning, Game Flow, and Game Over
-- [ ] Spawn one random tile after each player move
-- [ ] Skip spawn if `Freeze` is active
-- [ ] Detect game over when board is full and no merges are possible
-- [ ] Track and display current score
-
-### 🟨 Phase 5: Special Tile System
-- [ ] Implement `SpecialTile` base class
-- [ ] Create 4 common special tiles:
-  - Blaster, Painter, Freeze, Doubler
-- [ ] Create rare `ExpanderTile` that upgrades board to 7x7
-- [ ] Add UI interaction to activate special tiles
-
----
-
-### 🟨 Phase 6: Tile Spawning, Game Flow, and Game Over
-- [ ] Spawn one random tile after each player move
-- [ ] Skip spawn if `Freeze` is active
-- [ ] Detect game over when board is full and no merges are possible
-- [ ] Track and display current score
+- [x] Spawn one random tile after each player move
+- [x] Skip spawn if `Freeze` is active
+- [x] Detect game over when board is full and no merges are possible
+- [x] Track and display current score
 
 ---
 
@@ -397,5 +393,105 @@ Rarity: ~5% chance per split to generate the rare tile
 - [ ] Implement undo system
 - [ ] Mobile optimization (touch input, aspect scaling)
 - [ ] Performance profiling and pooling for tiles
+
+---
+
+## 🎯 GameStateManager Integration Plan
+
+To ensure clean, modular, and scalable game logic, `GameStateManager` is introduced as the central authority for managing the game’s state transitions.
+
+---
+
+### 🔗 Integration Targets for `GameStateManager`
+
+---
+
+#### 1. `GameManager.cs`
+
+**Role**: Orchestrates the game loop  
+**Integration**:
+- Sets initial state to `Init`, then `WaitingForInput`
+- Controls the turn cycle:  
+  `WaitingForInput → MovingTiles → Merging → Splitting → Spawning → WaitingForInput`
+- Triggers the `GameOver` state when the board is full and no valid moves remain
+
+```csharp
+GameStateManager.Instance.SetState(GameState.WaitingForInput);
+```
+
+---
+
+#### 2. `InputManager.cs`
+
+**Role**: Captures and processes swipe or click input  
+**Integration**:
+- Only processes input when the state is `WaitingForInput`
+
+```csharp
+if (GameStateManager.Instance.Is(GameState.WaitingForInput)) {
+    // Allow input and start tile movement
+}
+```
+
+---
+
+#### 3. `BoardManager.cs`
+
+**Role**: Manages tile movement, merging, and spawning  
+**Integration**:
+- Sets state transitions based on logic flow:
+  - `MovingTiles` when a swipe is applied
+  - `Merging` when merge is occurring
+  - `Splitting` when a split is triggered
+  - `Spawning` after all merges and splits
+- Notifies `GameManager` or `GameStateManager` when a phase completes
+
+```csharp
+GameStateManager.Instance.SetState(GameState.Merging);
+```
+
+---
+
+#### 4. `TileMerger.cs` & `TileSpawner.cs`
+
+**Role**: Handles merging and spawning of tiles  
+**Integration**:
+- Respect the active state of the game but **do not directly change it**
+- Only perform actions when in proper state (e.g., `Spawning`, `Merging`)
+
+---
+
+#### 5. `SpecialTileUI.cs` (or other interactive UI)
+
+**Role**: Allowing players to tap/use special abilities  
+**Integration**:
+- Only activate special tiles when state allows it
+
+```csharp
+if (GameStateManager.Instance.Is(GameState.SpecialTileAction)) {
+    // allow activation
+}
+```
+
+---
+
+### 🧩 Optional Later Integrations
+
+- **`UIManager.cs`**:
+  - Show/hide overlays based on state (e.g., Game Over, Pause, Combo Chain)
+- **`ScoreManager.cs`**:
+  - Adjust scoring logic depending on state (e.g., apply multipliers during `Splitting`)
+
+---
+
+### 🧠 Summary Table
+
+| File               | Uses `GameStateManager` to…                                  |
+|--------------------|--------------------------------------------------------------|
+| `GameManager.cs`   | Set global state at each step                                |
+| `InputManager.cs`  | Only allow input in `WaitingForInput` state                  |
+| `BoardManager.cs`  | Transition states for movement, merging, splitting, spawning |
+| `TileMerger.cs` & `TileSpawner.cs` | Respect current game state (read-only logic)         |
+| `SpecialTileUI.cs` | Limit interaction to valid game states                       |
 
 ---

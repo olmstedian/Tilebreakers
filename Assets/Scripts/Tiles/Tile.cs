@@ -9,33 +9,91 @@ public class Tile : MonoBehaviour
     private SpriteRenderer spriteRenderer;
     private TextMeshPro textMeshPro; // Use TextMeshPro for number display
 
-
     void Awake()
     {
         spriteRenderer = GetComponent<SpriteRenderer>();
-        textMeshPro = GetComponentInChildren<TextMeshPro>(); // Find the TextMeshPro component
-
+        // Try to find TextMeshPro or TextMeshProUGUI component
+        textMeshPro = GetComponentInChildren<TextMeshPro>();
+        
         if (textMeshPro == null)
         {
-            Debug.LogError("TextMeshPro component is missing from the Tile prefab.");
+            // Try to find TextMeshProUGUI (2D version) if the 3D version isn't found
+            var ugui = GetComponentInChildren<TMPro.TextMeshProUGUI>();
+            if (ugui != null) 
+            {
+                // We need to create a TextMeshPro for consistency
+                CreateTextMeshPro();
+            }
+            else
+            {
+                Debug.LogError("No TextMeshPro or TextMeshProUGUI component found on the Tile prefab.");
+                CreateTextMeshPro();
+            }
         }
         else
         {
-            ConfigureTextMeshPro(); // Ensure TMP is properly configured
+            ConfigureTextMeshPro();
         }
     }
 
     public void Initialize(Color color, int value)
     {
+        // Store the values
         tileColor = color;
         number = value;
+        
+        // Ensure we have a sprite renderer
+        if (spriteRenderer == null)
+            spriteRenderer = GetComponent<SpriteRenderer>();
+        
+        // Apply the color
+        if (spriteRenderer != null)
+            spriteRenderer.color = tileColor;
+        
+        // Get or create TextMeshPro component
+        if (textMeshPro == null)
+        {
+            // Look for existing TextMeshPro in children
+            textMeshPro = GetComponentInChildren<TextMeshPro>();
+            
+            // If still null, create a new one
+            if (textMeshPro == null)
+            {
+                CreateTextMeshPro();
+            }
+        }
+        
+        if (textMeshPro != null)
+        {
+            // Ensure the text matches the number
+            textMeshPro.text = number.ToString();
+            textMeshPro.ForceMeshUpdate();
+            
+            // Explicitly make the TextMeshPro active
+            textMeshPro.gameObject.SetActive(true);
+        }
+        
+        // Update visuals with our number
         UpdateVisuals();
+        
+        // Play the spawn animation
         PlaySpawnAnimation();
     }
 
-    private void UpdateVisuals()
+    public void UpdateVisuals()
     {
-        // Apply color with systematic adjustments based on number value
+        // First ensure we have required components
+        if (spriteRenderer == null) 
+            spriteRenderer = GetComponent<SpriteRenderer>();
+        
+        if (textMeshPro == null)
+            textMeshPro = GetComponentInChildren<TextMeshPro>();
+        
+        // If we still don't have TextMeshPro, create it
+        if (textMeshPro == null)
+            CreateTextMeshPro();
+        
+        // Calculate adjusted color based on tile number
         float brightnessFactor = Mathf.Lerp(0.8f, 1.2f, Mathf.Log10(number + 1) / 3f);
         Color adjustedColor = new Color(
             Mathf.Clamp01(tileColor.r * brightnessFactor),
@@ -44,25 +102,59 @@ public class Tile : MonoBehaviour
             tileColor.a
         );
         
-        spriteRenderer.color = adjustedColor;
-
+        // Apply the adjusted color to the sprite
+        if (spriteRenderer != null)
+            spriteRenderer.color = adjustedColor;
+        
+        // Update the text display
         if (textMeshPro != null)
         {
+            // Make sure the GameObject is active
+            textMeshPro.gameObject.SetActive(true);
+            
+            // CRITICAL: Ensure the text reflects the current number value
             textMeshPro.text = number.ToString();
             
-            // Dynamically adjust text size based on number of digits
+            // Adjust text size based on digit count
             int digitCount = Mathf.FloorToInt(Mathf.Log10(Mathf.Max(1, number))) + 1;
-            float baseSize = 8f;
+            float baseSize = 8f; 
             textMeshPro.fontSize = baseSize * Mathf.Pow(0.85f, digitCount - 1);
             
-            // Adjust contrast based on tile brightness
+            // Set color based on background brightness for better contrast
             float luminance = 0.299f * adjustedColor.r + 0.587f * adjustedColor.g + 0.114f * adjustedColor.b;
             textMeshPro.color = luminance > 0.5f ? Color.black : Color.white;
+            
+            // Force mesh update to ensure text renders properly
+            textMeshPro.ForceMeshUpdate();            
         }
+    }
+
+    public void MergeWith(Tile movingTile)
+    {
+        // Before merging, ensure no tiles remain selected
+        if (GameStateManager.Instance != null)
+        {
+            GameStateManager.Instance.ClearAllSelections();
+        }
+        
+        // Also explicitly clear our own visual selection state
+        ClearSelectionState();
+        
+        TileMerger.MergeTiles(this, movingTile);
+    }
+
+    // Add this method to help with selection state management
+    public void ClearSelectionState()
+    {
+        LeanTween.cancel(gameObject);
+        UpdateVisuals();
+        transform.localScale = Vector3.one;
     }
 
     private void ConfigureTextMeshPro()
     {
+        if (textMeshPro == null) return;
+        
         textMeshPro.alignment = TextAlignmentOptions.Center;
         textMeshPro.enableAutoSizing = true;
         textMeshPro.fontSizeMin = 1;
@@ -75,6 +167,11 @@ public class Tile : MonoBehaviour
 
         textMeshPro.transform.localPosition = new Vector3(0, 0, -0.2f);
         textMeshPro.sortingOrder = 1;
+        
+        // Enable mesh rendering (if somehow disabled)
+        MeshRenderer meshRenderer = textMeshPro.GetComponent<MeshRenderer>();
+        if (meshRenderer != null)
+            meshRenderer.enabled = true;
     }
 
     private void PlaySpawnAnimation()
@@ -95,5 +192,61 @@ public class Tile : MonoBehaviour
             sprite.color = new Color(initialColor.r, initialColor.g, initialColor.b, 0.6f);
             LeanTween.color(gameObject, initialColor, 0.3f);
         }
+    }
+
+    // Creates a new TextMeshPro component if it doesn't exist
+    private void CreateTextMeshPro()
+    {
+        // Create a new GameObject for the text
+        GameObject textObj = new GameObject("NumberText");
+        textObj.transform.SetParent(transform, false);
+        textObj.transform.localPosition = new Vector3(0, 0, -0.1f);
+        
+        // Add TextMeshPro component
+        textMeshPro = textObj.AddComponent<TextMeshPro>();
+        
+        // Basic configuration
+        textMeshPro.alignment = TextAlignmentOptions.Center;
+        textMeshPro.fontSize = 8f;
+        textMeshPro.enableAutoSizing = true;
+        textMeshPro.fontSizeMin = 1;
+        textMeshPro.fontSizeMax = 10;
+        textMeshPro.color = Color.black;
+        
+        // Critical: set the text to show the number
+        textMeshPro.text = number.ToString();
+        
+        // Add necessary components
+        if (textObj.GetComponent<MeshRenderer>() == null)
+            textObj.AddComponent<MeshRenderer>();
+        
+        // Try to find a default font asset (important for text rendering)
+        TMP_FontAsset defaultFont = null;
+        
+        // First look for an asset in Resources folder
+        defaultFont = Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF");
+        
+        // If not found, try to find from existing TextMeshPro components
+        if (defaultFont == null)
+        {
+            TextMeshPro[] existingTexts = FindObjectsOfType<TextMeshPro>();
+            foreach (TextMeshPro tmp in existingTexts)
+            {
+                if (tmp != textMeshPro && tmp.font != null)
+                {
+                    defaultFont = tmp.font;
+                    break;
+                }
+            }
+        }
+        
+        // Apply the font if found
+        if (defaultFont != null)
+        {
+            textMeshPro.font = defaultFont;
+        }
+        
+        // Force an update to ensure text is visible
+        textMeshPro.ForceMeshUpdate();
     }
 }
