@@ -2,7 +2,22 @@
 
 ## 📅 Recent Updates
 
-### **[Date: YYYY-MM-DD]**
+### **[Date: 2025-03-26]**
+#### **Swipe Enhancements**
+- Updated swipe distance calculation to use the grid's cell size instead of screen height.
+- Ensured swipe distance is consistent across devices and resolutions.
+- Tiles now move based on the swipe distance, limited by their number value.
+
+#### **Tile Movement**
+- Implemented dynamic movement logic:
+  - Tiles move up to their number value or the swipe distance, whichever is smaller.
+  - Movement is smooth and visually satisfying.
+
+---
+
+## 📅 Previous Updates
+
+### **[Date: 2025-03-26]**
 #### **Tile Enhancements**
 - Added dynamic brightness to tiles based on their number for better visual hierarchy.
 - Implemented text outlines for improved readability.
@@ -14,17 +29,14 @@
 #### **Grid and Cell Improvements**
 - Updated grid background to use a uniform light gray color.
 - Enhanced cell indicators with subtle scaling and layering for better clarity.
+- Fixed gaps between grid cells by slightly increasing the scale of background cells.
 
 #### **Game Initialization**
 - Ensured the starting configuration always has at least one valid move:
   - Added a `HasValidMove()` method to check for adjacent tiles with the same color and number.
   - Regenerates the board if no valid moves exist.
 
----
-
-## 📅 Previous Updates
-
-### **[Date: YYYY-MM-DD]**
+### **[Date: 2025-03-25]**
 #### **Core Systems**
 - Implemented `GameManager` to control game flow, turn sequence, and game over conditions.
 - Added `InputManager` to handle swipe gestures and detect directional input.
@@ -68,6 +80,7 @@
 - [x] Core architecture and grid system.
 - [x] Tile initialization and animations.
 - [x] Ensure starting configuration has valid moves.
+- [x] Fixed gaps between grid cells.
 - [ ] Swipe input and tile movement.
 - [ ] Merge and split logic.
 - [ ] Special tile mechanics.

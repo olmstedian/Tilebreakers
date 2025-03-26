@@ -4,11 +4,11 @@ public class InputManager : MonoBehaviour
 {
     public static InputManager Instance;
 
-    private Vector2 startTouchPosition;
+    public Vector2 startTouchPosition;
     private Vector2 endTouchPosition;
     private bool isSwiping;
 
-    public delegate void SwipeAction(Vector2Int direction);
+    public delegate void SwipeAction(Vector2Int direction, int swipeDistance);
     public static event SwipeAction OnSwipe;
 
     private void Awake()
@@ -80,7 +80,10 @@ public class InputManager : MonoBehaviour
                 direction = swipeDelta.y > 0 ? Vector2Int.up : Vector2Int.down;
             }
 
-            OnSwipe?.Invoke(direction);
+            // Calculate swipe distance in grid units
+            int swipeDistance = Mathf.FloorToInt((endTouchPosition - startTouchPosition).magnitude / (Screen.height / 6f));
+
+            OnSwipe?.Invoke(direction, swipeDistance); // Notify listeners about the swipe direction and distance
         }
     }
 }

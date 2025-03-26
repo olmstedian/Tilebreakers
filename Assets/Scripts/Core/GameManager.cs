@@ -15,10 +15,19 @@ public class GameManager : MonoBehaviour
     void Start()
     {
         // Initialize game (board, UI, etc.)
+        BoardManager.Instance.GenerateRandomStartingTiles();
     }
 
     public void EndTurn()
     {
-        // Handle tile spawn and check for game over
+        // Spawn a new tile
+        BoardManager.Instance.GenerateRandomStartingTiles(1, 1);
+
+        // Check for game over
+        if (!BoardManager.Instance.HasValidMove())
+        {
+            Debug.Log("Game Over!");
+            // Trigger game over logic (e.g., show game over screen)
+        }
     }
 }

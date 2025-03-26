@@ -1,39 +1,41 @@
-// Manages the grid state, tiles, and board updates
-
 using UnityEngine;
 using System.Collections.Generic;
 
 public class BoardManager : MonoBehaviour
 {
+    public static BoardManager Instance; // Singleton instance
+
     public int width = 6;
     public int height = 6;
-    public float cellSize = 1f; // Corrected initialization of cellSize
-    public GameObject tilePrefab; // Reference to the Tile prefab
-    public GameObject cellIndicatorPrefab; // Reference to the visual cell indicator prefab
-    public GameObject gridBackgroundPrefab; // Reference to the grid background prefab
+    public float cellSize = 1.5f;
+    public GameObject tilePrefab;
+    public GameObject cellIndicatorPrefab;
+    public GameObject gridBackgroundPrefab;
 
     private Tile[,] board;
-    private HashSet<Vector2Int> emptyCells; // Tracks empty cells for O(1) lookup
-    private Queue<Vector2Int> prioritizedSpawnLocations; // Queue for prioritized spawn locations
-
-    private readonly Color[] tileColorPalette = 
-    {
+    private HashSet<Vector2Int> emptyCells;
+    private Queue<Vector2Int> prioritizedSpawnLocations;
+    private readonly Color[] tileColorPalette = {
         new Color(1f, 0.5f, 0.5f), // Light Red
         new Color(0.5f, 0.5f, 1f), // Light Blue
         new Color(0.5f, 1f, 0.5f), // Light Green
         new Color(1f, 1f, 0.5f)    // Light Yellow
     };
 
-    void Start()
+    private void Awake()
     {
-        cellSize = 1.5f; // Set cell size
+        if (Instance == null) Instance = this;
+        else Destroy(gameObject);
+    }
+
+    private void Start()
+    {
         board = new Tile[width, height];
         emptyCells = new HashSet<Vector2Int>();
         prioritizedSpawnLocations = new Queue<Vector2Int>();
         InitializeGrid();
-        CreateGridBackground(); // Add background after initializing the grid
-
-        // Generate random starting tiles instead of filling the grid
+        CreateGridBackground();
+        InputManager.OnSwipe += HandleSwipe;
         GenerateRandomStartingTiles();
     }
 
@@ -45,14 +47,8 @@ public class BoardManager : MonoBehaviour
             {
                 Vector2Int gridPosition = new Vector2Int(x, y);
                 Vector2 position = GetWorldPosition(gridPosition);
-
-                // Add all cells to the emptyCells set initially
                 emptyCells.Add(gridPosition);
-
-                // Instantiate visual cell indicator
                 Instantiate(cellIndicatorPrefab, position, Quaternion.identity, transform);
-
-                // Do not instantiate tiles here to avoid a full grid
             }
         }
     }
@@ -64,239 +60,159 @@ public class BoardManager : MonoBehaviour
             for (int y = 0; y < height; y++)
             {
                 Vector2 position = GetWorldPosition(new Vector2Int(x, y));
-
-                // Instantiate a grid background cell at each tile position
                 GameObject gridCellBackground = Instantiate(gridBackgroundPrefab, position, Quaternion.identity, transform);
-
-                // Slightly increase the scale to ensure no gaps between cells
                 gridCellBackground.transform.localScale = new Vector3(cellSize * 1.02f, cellSize * 1.02f, 1f);
-
                 gridCellBackground.name = $"GridBackground ({x}, {y})";
             }
         }
-    }
-
-    public bool IsCellEmpty(Vector2Int position)
-    {
-        // Check if the position is in the emptyCells set
-        return emptyCells.Contains(position);
     }
 
     public Vector2 GetWorldPosition(Vector2Int gridPosition)
     {
         float gridWidth = width * cellSize;
         float gridHeight = height * cellSize;
-
-        // Center the grid dynamically based on screen dimensions
         float offsetX = -gridWidth / 2 + cellSize / 2;
         float offsetY = -gridHeight / 2 + cellSize / 2;
-
         return new Vector2(gridPosition.x * cellSize + offsetX, gridPosition.y * cellSize + offsetY);
     }
 
-    public Vector2Int GetGridPosition(Vector2 worldPosition)
+    private void HandleSwipe(Vector2Int direction, int swipeDistance)
     {
-        float gridWidth = width * cellSize;
-        float gridHeight = height * cellSize;
+        Vector2Int startPosition = GetGridPositionFromSwipeStart(InputManager.Instance.startTouchPosition);
+        Tile swipedTile = GetTileAtPosition(startPosition);
 
-        // Center offsets for grid alignment
-        float offsetX = -gridWidth / 2 + cellSize / 2;
-        float offsetY = -gridHeight / 2 + cellSize / 2;
+        if (swipedTile != null)
+        {
+            // Limit the movement to the smaller of swipe distance or the tile's number
+            int maxSteps = Mathf.Min(swipeDistance, swipedTile.number);
 
-        // Calculate grid position from world position
-        int x = Mathf.RoundToInt((worldPosition.x - offsetX) / cellSize);
-        int y = Mathf.RoundToInt((worldPosition.y - offsetY) / cellSize);
+            // Find the target position based on the limited steps
+            Vector2Int targetPosition = FindTargetPosition(startPosition, direction, maxSteps);
 
+            if (targetPosition != startPosition)
+            {
+                MoveTile(swipedTile, startPosition, targetPosition);
+                GameManager.Instance.EndTurn();
+            }
+        }
+    }
+
+    private Vector2Int GetGridPositionFromSwipeStart(Vector2 swipeStartPosition)
+    {
+        // Convert swipe start position in world space to grid coordinates
+        Vector3 worldPosition = Camera.main.ScreenToWorldPoint(swipeStartPosition);
+        int x = Mathf.FloorToInt((worldPosition.x + (width * cellSize) / 2) / cellSize);
+        int y = Mathf.FloorToInt((worldPosition.y + (height * cellSize) / 2) / cellSize);
         return new Vector2Int(x, y);
     }
 
-    public Tile GetTileAtPosition(Vector2Int gridPosition)
+    private Vector2Int FindTargetPosition(Vector2Int startPosition, Vector2Int direction, int maxSteps)
     {
-        // Check if the position is within bounds
-        if (gridPosition.x < 0 || gridPosition.x >= width || gridPosition.y < 0 || gridPosition.y >= height)
+        Vector2Int currentPosition = startPosition;
+
+        for (int step = 0; step < maxSteps; step++)
+        {
+            Vector2Int nextPosition = currentPosition + direction;
+
+            if (!IsWithinBounds(nextPosition) || IsCellOccupied(nextPosition))
+            {
+                break;
+            }
+
+            currentPosition = nextPosition;
+        }
+
+        return currentPosition;
+    }
+
+    private void MoveTile(Tile tile, Vector2Int startPosition, Vector2Int targetPosition)
+    {
+        ClearCell(startPosition);
+        SetTileAtPosition(targetPosition, tile);
+        tile.MoveTo(GetWorldPosition(targetPosition), 0.2f);
+        MarkCellAsOccupied(targetPosition);
+    }
+
+    private bool IsWithinBounds(Vector2Int position)
+    {
+        return position.x >= 0 && position.x < width && position.y >= 0 && position.y < height;
+    }
+
+    private bool IsCellOccupied(Vector2Int position)
+    {
+        return board[position.x, position.y] != null;
+    }
+
+    private Tile GetTileAtPosition(Vector2Int position)
+    {
+        if (!IsWithinBounds(position)) // Ensure position is within bounds
+        {
             return null;
-
-        // Return the tile at the specified position
-        return board[gridPosition.x, gridPosition.y];
-    }
-
-    public void SetTileAtPosition(Vector2Int gridPosition, Tile tile)
-    {
-        // Check if the position is within bounds
-        if (gridPosition.x < 0 || gridPosition.x >= width || gridPosition.y < 0 || gridPosition.y >= height)
-            return;
-
-        // Set the tile at the specified position
-        board[gridPosition.x, gridPosition.y] = tile;
-    }
-
-    public bool IsCellOccupied(Vector2Int gridPosition)
-    {
-        // Check if the position is within bounds
-        if (gridPosition.x < 0 || gridPosition.x >= width || gridPosition.y < 0 || gridPosition.y >= height)
-            return false;
-
-        // Return true if the cell is occupied by a tile
-        return board[gridPosition.x, gridPosition.y] != null;
-    }
-
-    public void ClearCell(Vector2Int gridPosition)
-    {
-        // Check if the position is within bounds
-        if (gridPosition.x < 0 || gridPosition.x >= width || gridPosition.y < 0 || gridPosition.y >= height)
-            return;
-
-        // Clear the cell by setting it to null
-        board[gridPosition.x, gridPosition.y] = null;
-    }
-
-    public void MarkCellAsOccupied(Vector2Int gridPosition)
-    {
-        // Remove the cell from the emptyCells set
-        emptyCells.Remove(gridPosition);
-    }
-
-    public void MarkCellAsEmpty(Vector2Int gridPosition)
-    {
-        // Add the cell to the emptyCells set
-        emptyCells.Add(gridPosition);
-    }
-
-    public void AddPrioritizedSpawnLocation(Vector2Int gridPosition)
-    {
-        // Add the position to the queue if it's not already in it and is empty
-        if (IsCellEmpty(gridPosition) && !prioritizedSpawnLocations.Contains(gridPosition))
-        {
-            prioritizedSpawnLocations.Enqueue(gridPosition);
         }
+        return board[position.x, position.y];
     }
 
-    public Vector2Int GetNextSpawnLocation()
+    private void SetTileAtPosition(Vector2Int position, Tile tile)
     {
-        // Check if there are prioritized locations
-        if (prioritizedSpawnLocations.Count > 0)
-        {
-            Vector2Int prioritizedLocation = prioritizedSpawnLocations.Dequeue();
-
-            // Ensure the location is still empty before returning it
-            if (IsCellEmpty(prioritizedLocation))
-            {
-                return prioritizedLocation;
-            }
-        }
-
-        // Fallback: Return a random empty cell if no prioritized locations are available
-        return GetRandomEmptyCell();
+        board[position.x, position.y] = tile;
     }
 
-    private Vector2Int GetRandomEmptyCell()
+    private void ClearCell(Vector2Int position)
     {
-        // Select a random empty cell from the HashSet
-        if (emptyCells.Count > 0)
-        {
-            int randomIndex = Random.Range(0, emptyCells.Count);
-            foreach (Vector2Int cell in emptyCells)
-            {
-                if (randomIndex == 0)
-                    return cell;
-                randomIndex--;
-            }
-        }
-
-        // Return an invalid position if no empty cells are available
-        return new Vector2Int(-1, -1);
+        board[position.x, position.y] = null;
     }
 
-    public List<Vector2Int> GetRandomEmptyCellsNear(Vector2Int gridPosition, int maxCells)
+    private void MarkCellAsOccupied(Vector2Int position)
     {
-        List<Vector2Int> nearbyEmptyCells = new List<Vector2Int>();
-        List<Vector2Int> potentialCells = new List<Vector2Int>
-        {
-            gridPosition + Vector2Int.up,
-            gridPosition + Vector2Int.down,
-            gridPosition + Vector2Int.left,
-            gridPosition + Vector2Int.right
-        };
-
-        foreach (Vector2Int cell in potentialCells)
-        {
-            if (IsCellEmpty(cell))
-            {
-                nearbyEmptyCells.Add(cell);
-            }
-        }
-
-        // Shuffle the list to randomize the order
-        for (int i = 0; i < nearbyEmptyCells.Count; i++)
-        {
-            int randomIndex = Random.Range(i, nearbyEmptyCells.Count);
-            Vector2Int temp = nearbyEmptyCells[i];
-            nearbyEmptyCells[i] = nearbyEmptyCells[randomIndex];
-            nearbyEmptyCells[randomIndex] = temp;
-        }
-
-        // Return up to the specified number of cells
-        return nearbyEmptyCells.GetRange(0, Mathf.Min(maxCells, nearbyEmptyCells.Count));
+        emptyCells.Remove(position);
     }
 
     public void GenerateRandomStartingTiles(int minTiles = 3, int maxTiles = 5)
     {
         int tileCount = Random.Range(minTiles, maxTiles + 1);
-
-        // Get a list of all empty cells
         List<Vector2Int> availableCells = new List<Vector2Int>(emptyCells);
 
-        // Shuffle the list to randomize placement
-        for (int i = 0; i < availableCells.Count; i++)
-        {
-            int randomIndex = Random.Range(i, availableCells.Count);
-            Vector2Int temp = availableCells[i];
-            availableCells[i] = availableCells[randomIndex];
-            availableCells[randomIndex] = temp;
-        }
-
-        // Place tiles evenly across the grid
         for (int i = 0; i < tileCount && i < availableCells.Count; i++)
         {
             Vector2Int spawnPosition = availableCells[i];
-
-            // Generate a random number between 1 and 5
             int randomNumber = Random.Range(1, 6);
-
-            // Generate a random color from the palette
-            Color randomColor = GetRandomTileColor();
-
-            // Instantiate a new tile at the spawn position
+            Color randomColor = tileColorPalette[Random.Range(0, tileColorPalette.Length)];
             GameObject newTile = Instantiate(tilePrefab, GetWorldPosition(spawnPosition), Quaternion.identity, transform);
             Tile tileComponent = newTile.GetComponent<Tile>();
-
-            // Initialize the tile with a random color and number
             tileComponent.Initialize(randomColor, randomNumber);
-
-            // Mark the cell as occupied
             SetTileAtPosition(spawnPosition, tileComponent);
             MarkCellAsOccupied(spawnPosition);
         }
     }
 
-    private Vector2Int GetStrategicSpawnPosition()
+    public bool HasValidMove()
     {
-        // Get a random empty cell
-        Vector2Int spawnPosition = GetRandomEmptyCell();
-
-        // Remove logic related to IsPositionSafeFromImmediateMerge
-        for (int attempts = 0; attempts < 10; attempts++) // Limit attempts to avoid infinite loops
+        for (int x = 0; x < width; x++)
         {
-            spawnPosition = GetRandomEmptyCell();
+            for (int y = 0; y < height; y++)
+            {
+                Tile currentTile = GetTileAtPosition(new Vector2Int(x, y));
+                if (currentTile == null) continue;
+
+                // Check adjacent tiles for a valid move
+                List<Vector2Int> adjacentPositions = new List<Vector2Int>
+                {
+                    new Vector2Int(x + 1, y),
+                    new Vector2Int(x - 1, y),
+                    new Vector2Int(x, y + 1),
+                    new Vector2Int(x, y - 1)
+                };
+
+                foreach (Vector2Int adjacent in adjacentPositions)
+                {
+                    Tile adjacentTile = GetTileAtPosition(adjacent);
+                    if (adjacentTile != null && adjacentTile.number == currentTile.number && adjacentTile.tileColor == currentTile.tileColor)
+                    {
+                        return true; // Found a valid move
+                    }
+                }
+            }
         }
-
-        // Return the last attempted position
-        return spawnPosition;
-    }
-
-    private Color GetRandomTileColor()
-    {
-        // Select a random color from the predefined palette
-        return tileColorPalette[Random.Range(0, tileColorPalette.Length)];
+        return false; // No valid moves found
     }
 }

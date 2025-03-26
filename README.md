@@ -6,12 +6,13 @@
 
 ## 🎮 Gameplay Overview
 
-- **Swipe tiles** to move them up to their number value in any direction
-- **Merge same-colored tiles** to add their numbers together
-- **Split** tiles when the value exceeds 12 into random tiles that total the original
-- **Special tiles** spawn from splits and trigger game-changing abilities
-- **New tiles** appear after every move
-- **Game ends** when the board is full and no valid moves remain
+- **Swipe tiles** to move them up to their number value in any direction.
+- **Swipe distance** is calculated based on the grid's cell size, ensuring precise movement.
+- **Merge same-colored tiles** to add their numbers together.
+- **Split** tiles when the value exceeds 12 into random tiles that total the original.
+- **Special tiles** spawn from splits and trigger game-changing abilities.
+- **New tiles** appear after every move.
+- **Game ends** when the board is full and no valid moves remain.
 
 ---
 
@@ -66,6 +67,10 @@
 ---
 
 ## ✅ Recent Additions
+
+### Swipe Enhancements
+- **Grid-Based Swipe Distance**: Swipe distance is now calculated using the grid's cell size, ensuring accurate and consistent movement across devices.
+- **Dynamic Movement**: Tiles move based on the swipe distance, limited by their number value.
 
 ### Tile Enhancements
 - **Dynamic Brightness**: Tiles brighten slightly as their numbers increase, creating a visual hierarchy.
@@ -331,18 +336,17 @@ Rarity: ~5% chance per split to generate the rare tile
 ---
 
 ### 🟨 Phase 3: Swipe Input & Tile Movement
-- [ ] Detect swipe in 4 directions
-- [ ] Move each tile up to `tile.number` cells
-- [ ] Block movement when another tile is in the way
-- [ ] Animate tile movement smoothly
+- [x] Detect swipe gestures in 4 directions.
+- [x] Move tiles up to their number value.
+- [x] Calculate swipe distance using grid cell size.
+- [ ] Block movement when another tile is in the way.
 
 ---
 
 ### 🟨 Phase 4: Merge & Split Logic
-- [ ] Merge same-colored tiles when they collide
-- [ ] Add numbers together on merge
-- [ ] If merged value > 12 → split into multiple random new tiles
-- [ ] Each split triggers one special tile to spawn nearby
+- [ ] Merge same-colored tiles when they collide.
+- [ ] Add numbers together on merge.
+- [ ] Split tiles when their value exceeds 12.
 
 ---
 
