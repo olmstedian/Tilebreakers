@@ -3,6 +3,16 @@ using TMPro;
 
 public class Tile : MonoBehaviour
 {
+    public enum TileState
+    {
+        Idle,
+        Selected,
+        Moving,
+        Merging
+    }
+
+    public TileState CurrentState { get; private set; } = TileState.Idle;
+
     public Color tileColor;
     public int number;
 
@@ -126,6 +136,56 @@ public class Tile : MonoBehaviour
             
             // Force mesh update to ensure text renders properly
             textMeshPro.ForceMeshUpdate();            
+        }
+    }
+
+    public void SetState(TileState newState)
+    {
+        if (CurrentState == newState) return;
+
+        ExitState(CurrentState);
+        CurrentState = newState;
+        EnterState(CurrentState);
+    }
+
+    private void EnterState(TileState state)
+    {
+        switch (state)
+        {
+            case TileState.Idle:
+                transform.localScale = Vector3.one;
+                break;
+
+            case TileState.Selected:
+                LeanTween.scale(gameObject, Vector3.one * 1.1f, 0.2f).setEaseOutBack();
+                break;
+
+            case TileState.Moving:
+                LeanTween.scale(gameObject, Vector3.one, 0.2f).setEaseInBack();
+                break;
+
+            case TileState.Merging:
+                LeanTween.scale(gameObject, Vector3.one * 1.2f, 0.2f).setEaseOutBack().setOnComplete(() =>
+                {
+                    LeanTween.scale(gameObject, Vector3.one, 0.2f).setEaseInBack();
+                });
+                break;
+        }
+    }
+
+    private void ExitState(TileState state)
+    {
+        switch (state)
+        {
+            case TileState.Selected:
+                LeanTween.cancel(gameObject);
+                transform.localScale = Vector3.one;
+                break;
+
+            case TileState.Moving:
+            case TileState.Merging:
+                LeanTween.cancel(gameObject);
+                break;
         }
     }
 

@@ -39,14 +39,69 @@
 
 ---
 
-## 🗂️ Folder Structure (Scripts)
-├── Core/           # Game flow, input, board control
-├── Tiles/          # Tile logic, merging, movement, animation
-├── SpecialTiles/   # Special tile logic
-├── Grid/           # Grid utilities and placement logic
-├── UI/             # Score display, menus, special UI
-├── FX/             # Visual and sound effects
-└── Utils/          # Helpers, extensions, enums
+## ✅ Completed Development Plan
+
+### Core Systems
+- **GameManager**: Controls game flow, turn sequence, and game over conditions.
+- **GameStateManager**: Manages game states (e.g., InitState, PlayerTurnState, PostTurnState, GameOverState).
+- **InputManager**: Handles mouse and touch input for tile selection and movement.
+
+### Board and Tile Management
+- **BoardManager**: Manages the grid, tile placement, and updates.
+- **Tile**: Implements tile behavior, including color, number, and animations.
+- **TileMover**: Handles smooth tile movement.
+- **TileAnimator**: Adds animations for merging and splitting.
+- **TileMerger**: Implements merging and splitting logic.
+
+### Special Tiles
+- **SpecialTile Base Class**: Defines common behavior for all special tiles.
+- **BlasterTile**: Destroys adjacent tiles when activated.
+- **SpecialTileUI**: Handles player interaction with special tiles.
+
+### Visual and UI Enhancements
+- **Dynamic Brightness**: Tiles brighten slightly as their numbers increase.
+- **Text Outlines**: Improved text readability with subtle outlines.
+- **Animations**:
+  - Smooth spawn animation for tiles.
+  - Pulse animation for merges.
+  - Smooth movement animations for tile transitions.
+- **Grid Background**: Uniform light gray background for all cells.
+- **Cell Indicators**: Subtle scaling and layering for better visual clarity.
+
+---
+
+## 🟨 Upcoming Development Plan
+
+### Special Tile System
+- **Implement Additional Special Tiles**:
+  - **PainterTile**: Converts adjacent tiles to its color.
+  - **FreezeTile**: Prevents tile spawn for one turn.
+  - **DoublerTile**: Doubles the value of the next merge.
+  - **ExpanderTile**: Expands the board from 6×6 to 7×7.
+
+### Game Over Handling
+- **Game Over Screen**:
+  - Display final score and high score.
+  - Add restart and main menu buttons.
+
+### Scoring System
+- **Implement Scoring**:
+  - Add points for merges and splits.
+  - Introduce combo bonuses for consecutive merges.
+
+### Polish and Optimization
+- **Visual Feedback**:
+  - Add effects for merging, splitting, and special tile activation.
+- **Sound Effects**:
+  - Add sounds for tile movement, merging, and splitting.
+- **Performance Optimization**:
+  - Implement object pooling for tiles to reduce instantiation overhead.
+
+### Challenge Modes
+- **Daily Challenges**:
+  - Introduce predefined levels with unique objectives.
+- **Endless Mode**:
+  - Allow players to play indefinitely with increasing difficulty.
 
 ---
 
@@ -65,215 +120,9 @@
 
 ---
 
-## ✅ Recent Updates
-
-### Tile Splitting System
-- Implemented full tile splitting functionality when merged tiles exceed value 12.
-- Added logic for generating multiple new tiles with values that sum to the original.
-- Randomized color assignment for split tiles.
-- Optimized spawn positions to prioritize non-adjacent cells for better gameplay.
-
-### Tile Number Display
-- Fixed issues with TextMeshPro components on spawned tiles.
-- Improved font loading and text visibility.
-- Enhanced verification processes to ensure numbers display correctly.
-
-### Input System
-- Removed swipe-based input and replaced it with mouse click-based selection and movement.
-- Simplified controls for better testing and gameplay.
-
-### Movement Enhancements
-- Blocked valid move highlights beyond occupied cells.
-- Improved animations for tile movement and merging.
-
----
-
 ## 📋 DEVLOG
 
 Track day-to-day development progress in **DEVLOG.md**
-
----
-
-## ✅ Roadmap (MVP)
-
-- Board setup & movement
-- Merge and split system
-- Special tile mechanics
-- Game over and score handling
-- Combo meter and multipliers
-- Challenge mode & unlocks
-- Mobile input optimizations
-
----
-
-## 📘 Game Concept Document – Tilebreakers
-
----
-
-### 1. Game Overview
-
-**Title**: Tilebreakers  
-**Genre**: Single-player Puzzle / Merge Board Game  
-**Platform**: Mobile (iOS / Android) and Web  
-**Style**: Minimalist, clean, color-coded tiles with number-based logic  
-**Session Length**: 2–5 minutes per run  
-**Target Audience**: Casual puzzle gamers, fans of 2048, Threes!, and strategic match/merge games
-
----
-
-### 2. Core Gameplay Loop
-1. Start with a 6×6 grid and 3–5 random tiles.  
-2. Swipe in any of 4 directions to move tiles.  
-3. Tiles move up to tile.number spaces in the swipe direction.  
-4. Tiles of the same color that collide merge, adding their numbers.  
-5. If the resulting tile exceeds 12, it splits into random-colored and -numbered tiles that sum up to the original.  
-6. Each split spawns one special tile with unique abilities.  
-7. After every move, a new tile spawns in a random empty cell.  
-8. Game ends when no moves are possible (board is full and no valid merges).
-
----
-
-### 3. Tile Properties
-
-**Standard Tiles**  
-- Attributes:
-  - `color`: Red, Blue, Green, Yellow, etc.
-  - `number`: Integer (1–12 max before splitting)
-  - `movementRange`: Equal to number
-
-**Spawn Rules**  
-- Random color  
-- Random number from 1 to 5  
-- Spawns after every swipe (unless prevented by a special tile)
-
----
-
-### 4. Merging Logic
-- Tiles must be the same color to merge.  
-- Merging adds their numbers.  
-- The merged tile appears in the position of the tile moved into.  
-- Tiles do not merge if the resulting number would exceed 12 and there’s no room to split.
-
----
-
-### 5. Splitting Logic
-- If a tile becomes >12, it splits:  
-  - Total value is split into random smaller numbers that sum to original  
-  - Each new tile has a random color  
-  - New tiles placed in random empty nearby cells  
-  - If not enough space, fill as many as possible
-
----
-
-### 6. Special Tiles (Characters)
-
-Spawned one per split. They have a color and a unique ability.
-
-**Core Special Tiles**:
-
-| Name      | Effect                             | Trigger |
-|-----------|-------------------------------------|---------|
-| Blaster   | Destroys 1 adjacent tile            | Tap     |
-| Painter   | Converts adjacent tiles to its color| Passive |
-| Freeze    | Prevents tile spawn this turn       | Tap     |
-| Doubler   | Doubles value of next merge this turn | Passive |
-
-**Rare Special Tile**:
-
-| Name       | Effect                            | Trigger |
-|------------|------------------------------------|---------|
-| Expander   | Increases board size from 6×6 to 7×7 | Tap     |
-
-Rarity: ~5% chance per split to generate the rare tile
-
----
-
-### 7. Scoring System
-- +1 per successful merge  
-- +Split tile total value  
-- +10 bonus for using a special ability  
-- +Combo/streak bonus if multiple merges/splits occur in a single swipe
-
----
-
-### 8. Game Over Conditions
-- Board is completely full  
-- No valid merges in any direction  
-- Game ends → show score, high score, and restart option
-
----
-
-### 9. Monetization & Progression (Post-MVP)
-- Cosmetic themes (tile skins, board styles)  
-- Undo token (free once per game, or via ad/currency)  
-- Challenge modes (timed, limited moves, etc.)  
-- Daily mission system  
-- Achievements (e.g., “Make 5 splits in one game”)
-
----
-
-### 10. Visual Design Notes
-- Minimalist grid (dark or neutral tone)  
-- Color-coded tiles with bold numbers  
-- Special tiles use icons or soft glow animations  
-- Smooth tile movement + satisfying merge/split animations
-
----
-
-### 11. Development Notes
-- Developed in Unity 2D  
-- Grid managed by a `BoardManager`  
-- Each `Tile` is a prefab with:
-  - Sprite Renderer (for color)
-  - TextMeshPro (for number)  
-- Swipe handled by gesture recognition or arrow keys (dev mode)  
-- Board can dynamically expand when `Expander` is triggered
-
----
-
-### Scripts/
-```
-├── Core/                  # Low-level systems
-│   ├── GameManager.cs     # Controls game flow, turn loop, game over, etc.
-│   ├── InputManager.cs    # Handles swipe inputs & direction resolution
-│   ├── BoardManager.cs    # Controls grid state, tile placement & updates
-│   └── Constants.cs       # All global config values (grid size, spawn rates, etc.)
-│
-├── Tiles/                 # Tile logic (base + types)
-│   ├── Tile.cs            # Base tile class: color, number, movement, merge logic
-│   ├── TileMover.cs       # Handles movement logic by direction
-│   ├── TileMerger.cs      # Handles merge + split logic
-│   ├── TileSpawner.cs     # Handles tile creation (random spawn, splits)
-│   └── TileAnimator.cs    # Animations: move, merge, split, spawn
-│
-├── SpecialTiles/          # Special character logic
-│   ├── SpecialTile.cs     # Base class for special tile behavior
-│   ├── BlasterTile.cs     # Clears adjacent tiles
-│   ├── PainterTile.cs     # Color conversion logic
-│   ├── FreezeTile.cs      # Delays tile spawn
-│   ├── DoublerTile.cs     # Buffs next merge
-│   └── ExpanderTile.cs    # Expands grid size
-│
-├── Grid/                  # Grid-specific utilities and tile placement
-│   ├── GridCell.cs        # Represents one cell (position, occupancy, etc.)
-│   ├── GridUtils.cs       # Utility functions (e.g., get adjacent, random empty)
-│   └── GridResizer.cs     # Dynamically expands grid (e.g. 6x6 → 7x7)
-│
-├── UI/                    # UI logic & visuals
-│   ├── UIManager.cs       # Handles screens, overlays, score panels
-│   ├── ScoreManager.cs    # Tracks and displays current score, high score
-│   ├── GameOverScreen.cs  # Game over logic
-│   └── SpecialTileUI.cs   # Interaction with tappable special tiles
-│
-├── FX/                    # Sound and visual effects
-│   ├── SoundManager.cs    # SoundFX (merge, split, swipe, tap)
-│   └── FXManager.cs       # VFX like glow, burst, flash, etc.
-│
-└── Utils/                 # Helpers and shared logic
-    ├── RNGUtils.cs        # Split logic, tile randomization
-    ├── Direction.cs       # Enum & helpers for swipe directions
-    └── ExtensionMethods.cs # Optional helpful extensions for lists, vectors, etc.
-```
 
 ---
 
@@ -289,209 +138,187 @@ Rarity: ~5% chance per split to generate the rare tile
 
 ### ✅ Phase 2: Core Architecture & Grid System
 - [x] Implement `GameManager`, `BoardManager`, `InputManager`
-    - [x] GameManager controls game flow, score tracking, and turn sequence
-    - [x] BoardManager maintains grid state and tile positions
-    - [x] Create a 6x6 tile grid
-        - [x] Grid cells with proper spacing (15-20px gaps between cells)
-        - [x] Visual cell indicators (light borders or background shading)
-        - [x] Implement grid container with dynamic sizing based on screen dimensions
-        - [x] Add subtle grid background pattern for visual clarity
-    - [ ] Position tracking system
-        - [x] Vector2Int coordinates for logical grid positions
-        - [x] Convert between world space and grid coordinates
-        - [x] Implement efficient lookup for tiles at specific positions
-        - [x] Track occupied vs empty cell states
-    - [ ] Empty cell detection system
-        - [x] O(1) lookup method for finding empty cells
-        - [x] Queue-based system for prioritizing certain spawn locations
-        - [x] Method to find random empty cells to a given position (for splits)
-    - [ ] Generate 3–5 random starting tiles
-        - [x] Random number generator (values 1-5)
-        - [x] Color selection from predefined palette (4 base colors)
-        - [x] Strategic initial placement algorithm (avoid immediate merges)
-        - [x] Smooth spawn-in animation
-- [ ] Structure `Tile` prefab (color, number, movement range)
-    - [x] SpriteRenderer for tile background and color with rounded corners
-    - [x] TextMeshPro component for number display with optimized font settings
-    - [x] Movement range property matching tile number value (1-12)
-    - [x] Basic animation components for transitions (scale, move, fade)
-    - [x] Collision detection for merge interactions
-    - [x] Visual indicator for maximum movement range on hover/selection
-    - [ ] State machine to handle idle, selected, moving, and merging states
-- [ ] Generate Canvas and UI Elements
-    - [x] Create main game Canvas with appropriate CanvasScaler settings
-    - [x] Implement world-space camera setup for proper rendering and scaling
-    - [x] Design game board container with proper anchoring
-    - [ ] Add score display and game status panels
-    - [ ] Create header area for game title and controls
-    - [ ] Implement game over overlay with restart functionality
-    - [ ] Set up smooth transitions between UI states
-    - [ ] Configure responsive layout for different screen orientations
-
-- [ ] Generate random tiles at the beginning
-    - [x] Create 3-5 tiles with random numbers (1-5)
-    - [x] Assign random colors from predefined palette
-    - [x] Place tiles evenly across the grid
-    - [x] Animate tiles appearing on the board
-    - [x] Ensure starting configuration has at least one valid move
+- [x] Create a 6×6 tile grid with proper spacing and visual indicators.
+- [x] Generate random starting tiles with valid moves.
 
 ---
 
-### 🟨 Phase 3: Click Input & Tile Movement
-- [x] Detect swipe gestures in 4 directions.
-- [x] Move tiles up to their number value.
-- [x] Select a tile with mouse click.
-- [x] Show valid movement options based on tile's number value.
-- [x] Move tile to selected destination with second click.
-- [x] Block movement when another tile is in the way.
+### ✅ Phase 3: Click Input & Tile Movement
+- [x] Detect mouse clicks for tile selection and movement.
+- [x] Highlight valid movement options based on tile's number value.
+- [x] Move tiles to selected destinations with smooth animations.
 
 ---
 
-### 🟨 Phase 4: Merge & Split Logic
-- [x] Merge same-colored tiles when they collide.
-- [x] Add numbers together on merge.
+### ✅ Phase 4: Merge & Split Logic
+- [x] Merge same-colored tiles and add their numbers.
 - [x] Split tiles when their value exceeds 12.
-- [ ] Add UI interaction to activate special tiles
+- [x] Spawn special tiles during splits.
 
 ---
-
-### 🟨 Phase 6: Tile Spawning, Game Flow, and Game Over
-- [x] Spawn one random tile after each player move
-- [x] Skip spawn if `Freeze` is active
-- [x] Detect game over when board is full and no merges are possible
-- [x] Track and display current score
 
 ### 🟨 Phase 5: Special Tile System
-- [ ] Implement `SpecialTile` base class
-- [ ] Create 4 common special tiles:
-  - Blaster, Painter, Freeze, Doubler
-- [ ] Create rare `ExpanderTile` that upgrades board to 7x7
-- [ ] Add UI interaction to activate special tiles
+- [x] Implement `SpecialTile` base class.
+- [x] Create `BlasterTile` to destroy adjacent tiles.
+- [ ] Add additional special tiles (Painter, Freeze, Doubler, Expander).
+- [ ] Add UI interaction for activating special tiles.
 
 ---
 
 ### 🟨 Phase 6: Tile Spawning, Game Flow, and Game Over
-- [x] Spawn one random tile after each player move
-- [x] Skip spawn if `Freeze` is active
-- [x] Detect game over when board is full and no merges are possible
-- [x] Track and display current score
+- [x] Spawn one random tile after each player move.
+- [ ] Skip spawn if `FreezeTile` is active.
+- [ ] Detect game over when the board is full and no valid moves are possible.
+- [ ] Display game over screen with score and restart options.
 
 ---
 
 ### 🟨 Phase 7: Polish and UI
-- [ ] Add visual feedback for:
-  - Merging, splitting, special abilities
-- [ ] Add SFX and minimal VFX
-- [ ] Add score UI, game over screen
-- [ ] Optional: Add pause/restart buttons
+- [ ] Add visual feedback for merging, splitting, and special abilities.
+- [ ] Add sound effects for tile interactions.
+- [ ] Add score UI and game over screen.
 
 ---
 
 ### 🟩 Phase 8: Extra Features & Optimization (Post-MVP)
-- [ ] Add combo meter / multipliers
-- [ ] Challenge levels or endless mode options
-- [ ] Implement undo system
-- [ ] Mobile optimization (touch input, aspect scaling)
-- [ ] Performance profiling and pooling for tiles
+- [ ] Add combo meter / multipliers.
+- [ ] Challenge levels or endless mode options.
+- [ ] Implement undo system.
+- [ ] Mobile optimization (touch input, aspect scaling).
+- [ ] Performance profiling and pooling for tiles.
 
 ---
 
-## 🎯 GameStateManager Integration Plan
+## 🧩 Level System – LevelManager & LevelData
 
-To ensure clean, modular, and scalable game logic, `GameStateManager` is introduced as the central authority for managing the game’s state transitions.
+Even though Tilebreakers is designed as an endless puzzle game, introducing a level system opens the door for:
+
+- Structured challenge levels
+- Difficulty progression (e.g., increased color count, limited moves)
+- Campaigns or milestones
+- Special modifiers (e.g., faster split threshold, spawn blockers)
+- Daily rotating objectives
 
 ---
 
-### 🔗 Integration Targets for `GameStateManager`
+### 📁 Files
 
----
-
-#### 1. `GameManager.cs`
-
-**Role**: Orchestrates the game loop  
-**Integration**:
-- Sets initial state to `Init`, then `WaitingForInput`
-- Controls the turn cycle:  
-  `WaitingForInput → MovingTiles → Merging → Splitting → Spawning → WaitingForInput`
-- Triggers the `GameOver` state when the board is full and no valid moves remain
+#### `Core/LevelManager.cs`
+Manages current level rules, objectives, and win/loss conditions.
 
 ```csharp
-GameStateManager.Instance.SetState(GameState.WaitingForInput);
-```
+public class LevelManager : MonoBehaviour
+{
+    public static LevelManager Instance;
+    public LevelData currentLevel;
 
----
+    private void Awake()
+    {
+        if (Instance == null) Instance = this;
+        else Destroy(gameObject);
+    }
 
-#### 2. `InputManager.cs`
+    public void LoadLevel(LevelData level)
+    {
+        currentLevel = level;
+        // Apply settings: grid size, rules, special tile toggle
+    }
 
-**Role**: Captures and processes swipe or click input  
-**Integration**:
-- Only processes input when the state is `WaitingForInput`
+    public bool IsLevelComplete()
+    {
+        // Evaluate score, move count, etc.
+        return false;
+    }
 
-```csharp
-if (GameStateManager.Instance.Is(GameState.WaitingForInput)) {
-    // Allow input and start tile movement
+    public void AdvanceToNextLevel()
+    {
+        // Load next LevelData or return to menu
+    }
 }
 ```
 
 ---
 
-#### 3. `BoardManager.cs`
+#### `Core/LevelData.cs` (ScriptableObject)
 
-**Role**: Manages tile movement, merging, and spawning  
-**Integration**:
-- Sets state transitions based on logic flow:
-  - `MovingTiles` when a swipe is applied
-  - `Merging` when merge is occurring
-  - `Splitting` when a split is triggered
-  - `Spawning` after all merges and splits
-- Notifies `GameManager` or `GameStateManager` when a phase completes
+Holds data for each level — easily configured in the Unity Inspector.
 
 ```csharp
-GameStateManager.Instance.SetState(GameState.Merging);
-```
-
----
-
-#### 4. `TileMerger.cs` & `TileSpawner.cs`
-
-**Role**: Handles merging and spawning of tiles  
-**Integration**:
-- Respect the active state of the game but **do not directly change it**
-- Only perform actions when in proper state (e.g., `Spawning`, `Merging`)
-
----
-
-#### 5. `SpecialTileUI.cs` (or other interactive UI)
-
-**Role**: Allowing players to tap/use special abilities  
-**Integration**:
-- Only activate special tiles when state allows it
-
-```csharp
-if (GameStateManager.Instance.Is(GameState.SpecialTileAction)) {
-    // allow activation
+[CreateAssetMenu(menuName = "Tilebreakers/Level")]
+public class LevelData : ScriptableObject
+{
+    public int gridSizeX = 6;
+    public int gridSizeY = 6;
+    public int startingTileCount = 4;
+    public int scoreTarget;
+    public int maxMoves;
+    public bool allowSpecialTiles = true;
+    public bool isTimed;
+    public List<Vector2Int> predefinedTilePositions;
 }
 ```
 
 ---
 
-### 🧩 Optional Later Integrations
+### 🛠️ Development Plan
 
-- **`UIManager.cs`**:
-  - Show/hide overlays based on state (e.g., Game Over, Pause, Combo Chain)
-- **`ScoreManager.cs`**:
-  - Adjust scoring logic depending on state (e.g., apply multipliers during `Splitting`)
+1. Create `LevelData.cs` as a ScriptableObject.
+2. Create a few test levels in `Assets/Levels/` (e.g., `Level_01.asset`, `DailyChallenge.asset`).
+3. Create `LevelManager.cs` to control level loading and progression.
+4. Update `GameManager` to reference `LevelManager.Instance.currentLevel` on start.
+5. Pass rules to `BoardManager`, `TileSpawner`, and `GameStateManager` (e.g., disallow special tiles).
+6. Add condition evaluation:
+   - Score threshold reached
+   - Number of moves used
+   - Win/loss popup
 
 ---
 
-### 🧠 Summary Table
+### 🧠 Optional Extensions
 
-| File               | Uses `GameStateManager` to…                                  |
-|--------------------|--------------------------------------------------------------|
-| `GameManager.cs`   | Set global state at each step                                |
-| `InputManager.cs`  | Only allow input in `WaitingForInput` state                  |
-| `BoardManager.cs`  | Transition states for movement, merging, splitting, spawning |
-| `TileMerger.cs` & `TileSpawner.cs` | Respect current game state (read-only logic)         |
-| `SpecialTileUI.cs` | Limit interaction to valid game states                       |
+- Add "Next Level" button after win
+- Tie `LevelData` to a challenge or daily rotation system
+- Add `LevelObjective.cs` for complex conditions (e.g., "Merge 5 red tiles")
+
+---
+
+## 🧱 Basic Full Game Build – Checklist (Pre-State System)
+
+Before implementing advanced systems like GameStateManager and LevelManager, the goal is to build a complete, minimal version of the game with all core logic, UI, and interactions functioning. This version can be playtested and expanded safely.
+
+### ✅ Core Gameplay Loop
+- [x] Tile movement: click to select and move tile up to its number of spaces
+- [x] Merge logic: same-colored tiles merge and add their numbers
+- [x] Split logic: if value > 12, split into smaller tiles summing to the original
+- [x] Random tile spawn after each move
+- [x] Prevent movement into occupied cells
+- [ ] Game over check: board full and no valid merges
+- [ ] Restart button resets the board
+
+---
+
+### ✅ Basic UI Elements
+- [ ] Score display (merges and splits)
+- [ ] Game over screen with:
+  - Final score
+  - Restart button
+- [ ] Optional: simple pause button
+- [ ] Visual indicator for selected tile
+- [ ] Optional: debug UI (current tile state, move log)
+
+---
+
+### ✅ Basic Visuals and Feedback
+- [ ] Basic tile color and number rendering
+- [ ] Merge animation (e.g. scale bounce)
+- [ ] Tile move animation
+- [ ] Split animation (simple spawn pop)
+
+---
+
+### 🔁 Once Complete:
+- Playtest for game balance, bugs, and feel
+- Add GameStateManager to organize logic
+- Layer in special tiles, polish, effects, and UI improvements
 
 ---

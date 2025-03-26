@@ -29,8 +29,14 @@ public class BoardManager : MonoBehaviour
 
     private void Awake()
     {
-        if (Instance == null) Instance = this;
-        else Destroy(gameObject);
+        if (Instance == null)
+        {
+            Instance = this;
+        }
+        else
+        {
+            Destroy(gameObject);
+        }
     }
 
     private void Start()
@@ -237,7 +243,7 @@ public class BoardManager : MonoBehaviour
         board[position.x, position.y] = tile;
     }
 
-    private void ClearCell(Vector2Int position)
+    public void ClearCell(Vector2Int position)
     {
         board[position.x, position.y] = null;
     }
@@ -727,5 +733,32 @@ public class BoardManager : MonoBehaviour
     public int GetEmptyCellsCount()
     {
         return emptyCells.Count;
+    }
+
+    public void SpawnSpecialTile(Vector2Int position, string abilityName)
+    {
+        if (!IsWithinBounds(position) || !IsCellEmpty(position)) return;
+
+        GameObject specialTilePrefab = null;
+
+        // Select the appropriate prefab based on the ability name
+        switch (abilityName)
+        {
+            case "Blaster":
+                specialTilePrefab = Resources.Load<GameObject>("Prefabs/SpecialTiles/BlasterTile");
+                break;
+            // Add cases for other special tiles here
+        }
+
+        if (specialTilePrefab != null)
+        {
+            GameObject specialTileObj = Instantiate(specialTilePrefab, GetWorldPosition(position), Quaternion.identity, transform);
+            SpecialTile specialTile = specialTileObj.GetComponent<SpecialTile>();
+            if (specialTile != null)
+            {
+                specialTile.Initialize(GetRandomTileColor(), abilityName);
+                MarkCellAsOccupied(position);
+            }
+        }
     }
 }

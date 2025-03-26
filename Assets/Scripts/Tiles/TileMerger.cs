@@ -72,6 +72,12 @@ public class TileMerger : MonoBehaviour
         // Destroy the original tile
         Object.Destroy(tile.gameObject);
         
+        // Spawn a special tile at the original position
+        if (Random.value < Constants.SPECIAL_TILE_CHANCE)
+        {
+            BoardManager.Instance.SpawnSpecialTile(originalPosition, "Blaster");
+        }
+
         // Create new tiles at the random positions
         for (int i = 0; i < splitCount; i++)
         {
