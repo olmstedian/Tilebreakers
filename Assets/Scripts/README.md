@@ -18,3 +18,4 @@
 ```
 GameManager → InputManager → BoardManager → Tile Logic → Grid Updates → UI/FX
 ```
+

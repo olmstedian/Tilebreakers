@@ -2,7 +2,7 @@
 
 ## 📅 Recent Updates
 
-### **[Date: 2025-03-26]**
+### **[Date: 2025-03-25]**
 #### **Swipe Enhancements**
 - Updated swipe distance calculation to use the grid's cell size instead of screen height.
 - Ensured swipe distance is consistent across devices and resolutions.
@@ -12,6 +12,18 @@
 - Implemented dynamic movement logic:
   - Tiles move up to their number value or the swipe distance, whichever is smaller.
   - Movement is smooth and visually satisfying.
+
+### **[Date: 2025-03-26]**
+- **Highlight Tag Fix**: Defined the "Highlight" tag in Unity Editor and ensured all highlight objects are correctly tagged. This resolves the error raised by CompareTag("Highlight") and ensures highlights are cleared after moves.
+
+### **[Date: 2025-03-26]**
+- **Input Update**: Removed swipe-based input. The input system now uses mouse clicks for tile selection and movement, simplifying controls and testing.
+
+### **[Date: 2025-03-26]**
+- **Movement Block Update**: Enhanced valid move highlighting by blocking highlights beyond an occupied cell. If a tile is in the way, no further highlights appear in that direction, ensuring that tile movement is correctly blocked.
+
+### **[Date: 2025-03-26]**
+- **Movement Block Updates**: Enhanced move animations and added audio to move. 
 
 ---
 
@@ -57,10 +69,6 @@
 ---
 
 ## 📅 Upcoming Tasks
-- **Swipe Input & Tile Movement**:
-  - Detect swipe gestures in 4 directions.
-  - Move tiles up to their number value.
-  - Block movement when another tile is in the way.
 
 - **Merge & Split Logic**:
   - Merge same-colored tiles when they collide.
@@ -81,7 +89,7 @@
 - [x] Tile initialization and animations.
 - [x] Ensure starting configuration has valid moves.
 - [x] Fixed gaps between grid cells.
-- [ ] Swipe input and tile movement.
+- [x] Click/Tap input and tile movement.
 - [ ] Merge and split logic.
 - [ ] Special tile mechanics.
 - [ ] Game over handling and UI polish.

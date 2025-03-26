@@ -20,9 +20,8 @@ public class GameManager : MonoBehaviour
 
     public void EndTurn()
     {
-        // Spawn a new tile
+        // Spawn one new tile using the constants-defined spawn count (1 tile)
         BoardManager.Instance.GenerateRandomStartingTiles(1, 1);
-
         // Check for game over
         if (!BoardManager.Instance.HasValidMove())
         {

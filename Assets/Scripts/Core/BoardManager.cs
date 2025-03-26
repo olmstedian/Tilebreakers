@@ -1,13 +1,14 @@
 using UnityEngine;
 using System.Collections.Generic;
+using System.Linq;
 
 public class BoardManager : MonoBehaviour
 {
     public static BoardManager Instance; // Singleton instance
 
-    public int width = 6;
-    public int height = 6;
-    public float cellSize = 1.5f;
+    public int width = Constants.DEFAULT_WIDTH;
+    public int height = Constants.DEFAULT_HEIGHT;
+    public float cellSize = Constants.DEFAULT_CELL_SIZE;
     public GameObject tilePrefab;
     public GameObject cellIndicatorPrefab;
     public GameObject gridBackgroundPrefab;
@@ -22,6 +23,9 @@ public class BoardManager : MonoBehaviour
         new Color(1f, 1f, 0.5f)    // Light Yellow
     };
 
+    private Tile selectedTile;
+    private Vector2Int selectedTilePosition;
+
     private void Awake()
     {
         if (Instance == null) Instance = this;
@@ -35,7 +39,8 @@ public class BoardManager : MonoBehaviour
         prioritizedSpawnLocations = new Queue<Vector2Int>();
         InitializeGrid();
         CreateGridBackground();
-        InputManager.OnSwipe += HandleSwipe;
+        InputManager.OnTileSelected += HandleTileSelection;
+        InputManager.OnTileMoveConfirmed += HandleTileMoveConfirmation;
         GenerateRandomStartingTiles();
     }
 
@@ -76,27 +81,6 @@ public class BoardManager : MonoBehaviour
         return new Vector2(gridPosition.x * cellSize + offsetX, gridPosition.y * cellSize + offsetY);
     }
 
-    private void HandleSwipe(Vector2Int direction, int swipeDistance)
-    {
-        Vector2Int startPosition = GetGridPositionFromSwipeStart(InputManager.Instance.startTouchPosition);
-        Tile swipedTile = GetTileAtPosition(startPosition);
-
-        if (swipedTile != null)
-        {
-            // Limit the movement to the smaller of swipe distance or the tile's number
-            int maxSteps = Mathf.Min(swipeDistance, swipedTile.number);
-
-            // Find the target position based on the limited steps
-            Vector2Int targetPosition = FindTargetPosition(startPosition, direction, maxSteps);
-
-            if (targetPosition != startPosition)
-            {
-                MoveTile(swipedTile, startPosition, targetPosition);
-                GameManager.Instance.EndTurn();
-            }
-        }
-    }
-
     private Vector2Int GetGridPositionFromSwipeStart(Vector2 swipeStartPosition)
     {
         // Convert swipe start position in world space to grid coordinates
@@ -104,6 +88,18 @@ public class BoardManager : MonoBehaviour
         int x = Mathf.FloorToInt((worldPosition.x + (width * cellSize) / 2) / cellSize);
         int y = Mathf.FloorToInt((worldPosition.y + (height * cellSize) / 2) / cellSize);
         return new Vector2Int(x, y);
+    }
+
+    public Vector2Int GetGridPositionFromWorldPosition(Vector3 worldPosition)
+    {
+        int x = Mathf.FloorToInt((worldPosition.x + (width * cellSize) / 2) / cellSize);
+        int y = Mathf.FloorToInt((worldPosition.y + (height * cellSize) / 2) / cellSize);
+        return new Vector2Int(x, y);
+    }
+
+    public bool IsWithinBounds(Vector2Int position)
+    {
+        return position.x >= 0 && position.x < width && position.y >= 0 && position.y < height;
     }
 
     private Vector2Int FindTargetPosition(Vector2Int startPosition, Vector2Int direction, int maxSteps)
@@ -129,13 +125,26 @@ public class BoardManager : MonoBehaviour
     {
         ClearCell(startPosition);
         SetTileAtPosition(targetPosition, tile);
-        tile.MoveTo(GetWorldPosition(targetPosition), 0.2f);
+        
+        // Movement Logic: update tile’s logical position using TileMover.
+        TileMover mover = tile.GetComponent<TileMover>();
+        if (mover != null)
+        {
+            StartCoroutine(mover.MoveTile(GetWorldPosition(targetPosition), Constants.TILE_MOVE_DURATION));
+        }
+        else
+        {
+            tile.transform.position = GetWorldPosition(targetPosition);
+        }
+        
+        // Animation: trigger visual effects using TileAnimator.
+        TileAnimator animator = tile.GetComponent<TileAnimator>();
+        if (animator != null)
+        {
+            animator.PlayMoveAnimation(GetWorldPosition(targetPosition), Constants.TILE_MOVE_DURATION);
+        }
+        
         MarkCellAsOccupied(targetPosition);
-    }
-
-    private bool IsWithinBounds(Vector2Int position)
-    {
-        return position.x >= 0 && position.x < width && position.y >= 0 && position.y < height;
     }
 
     private bool IsCellOccupied(Vector2Int position)
@@ -167,7 +176,7 @@ public class BoardManager : MonoBehaviour
         emptyCells.Remove(position);
     }
 
-    public void GenerateRandomStartingTiles(int minTiles = 3, int maxTiles = 5)
+    public void GenerateRandomStartingTiles(int minTiles = Constants.MIN_START_TILES, int maxTiles = Constants.MAX_START_TILES)
     {
         int tileCount = Random.Range(minTiles, maxTiles + 1);
         List<Vector2Int> availableCells = new List<Vector2Int>(emptyCells);
@@ -175,7 +184,7 @@ public class BoardManager : MonoBehaviour
         for (int i = 0; i < tileCount && i < availableCells.Count; i++)
         {
             Vector2Int spawnPosition = availableCells[i];
-            int randomNumber = Random.Range(1, 6);
+            int randomNumber = Random.Range(Constants.MIN_TILE_NUMBER, Constants.MAX_TILE_NUMBER + 1);
             Color randomColor = tileColorPalette[Random.Range(0, tileColorPalette.Length)];
             GameObject newTile = Instantiate(tilePrefab, GetWorldPosition(spawnPosition), Quaternion.identity, transform);
             Tile tileComponent = newTile.GetComponent<Tile>();
@@ -214,5 +223,63 @@ public class BoardManager : MonoBehaviour
             }
         }
         return false; // No valid moves found
+    }
+
+    private void HandleTileSelection(Vector2Int gridPosition)
+    {
+        Tile tile = GetTileAtPosition(gridPosition);
+        if (tile != null)
+        {
+            selectedTile = tile;
+            selectedTilePosition = gridPosition;
+            HighlightValidMoves(gridPosition, tile.number);
+        }
+    }
+
+    private void HighlightValidMoves(Vector2Int startPosition, int maxSteps)
+    {
+        ClearHighlights();
+        Vector2Int[] directions = new Vector2Int[] { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
+        foreach (Vector2Int direction in directions)
+        {
+            for (int step = 1; step <= maxSteps; step++)
+            {
+                Vector2Int targetPosition = startPosition + direction * step;
+                if (!IsWithinBounds(targetPosition)) break;
+                if (IsCellOccupied(targetPosition)) break; // Stop highlighting if tile found
+                HighlightCell(targetPosition);
+            }
+        }
+    }
+
+    private void HighlightCell(Vector2Int position)
+    {
+        // Add visual feedback for valid move cells (e.g., change cell color)
+        GameObject cellIndicator = Instantiate(cellIndicatorPrefab, GetWorldPosition(position), Quaternion.identity, transform);
+        cellIndicator.tag = "Highlight"; // Assign the correct tag
+        cellIndicator.GetComponent<SpriteRenderer>().color = new Color(0.5f, 1f, 0.5f, 0.5f); // Highlight color
+    }
+
+    private void ClearHighlights()
+    {
+        // Clear all existing highlights
+        foreach (Transform child in transform)
+        {
+            if (child.CompareTag("Highlight")) // Ensure the tag is correctly assigned
+            {
+                Destroy(child.gameObject);
+            }
+        }
+    }
+
+    private void HandleTileMoveConfirmation(Vector2Int targetPosition)
+    {
+        if (selectedTile != null && IsWithinBounds(targetPosition) && !IsCellOccupied(targetPosition))
+        {
+            MoveTile(selectedTile, selectedTilePosition, targetPosition);
+            selectedTile = null;
+            ClearHighlights(); // Ensure highlights are cleared after the move
+            GameManager.Instance.EndTurn();
+        }
     }
 }

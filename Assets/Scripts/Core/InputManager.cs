@@ -4,12 +4,15 @@ public class InputManager : MonoBehaviour
 {
     public static InputManager Instance;
 
-    public Vector2 startTouchPosition;
-    private Vector2 endTouchPosition;
-    private bool isSwiping;
+    public Vector2 touchPosition;
+    public Vector2 startTouchPosition { get; private set; } // Add this property
+    private bool isSelecting;
 
-    public delegate void SwipeAction(Vector2Int direction, int swipeDistance);
-    public static event SwipeAction OnSwipe;
+    public delegate void TileSelectedAction(Vector2Int gridPosition);
+    public static event TileSelectedAction OnTileSelected;
+
+    public delegate void TileMoveConfirmedAction(Vector2Int targetPosition);
+    public static event TileMoveConfirmedAction OnTileMoveConfirmed;
 
     private void Awake()
     {
@@ -19,10 +22,10 @@ public class InputManager : MonoBehaviour
 
     void Update()
     {
-        HandleSwipeInput();
+        HandleInput();
     }
 
-    private void HandleSwipeInput()
+    private void HandleInput()
     {
         if (Input.touchCount > 0)
         {
@@ -31,59 +34,51 @@ public class InputManager : MonoBehaviour
             switch (touch.phase)
             {
                 case TouchPhase.Began:
-                    startTouchPosition = touch.position;
-                    isSwiping = true;
-                    break;
-
-                case TouchPhase.Moved:
-                    if (isSwiping)
-                    {
-                        endTouchPosition = touch.position;
-                        DetectSwipe();
-                    }
+                    startTouchPosition = touch.position; // Set startTouchPosition
+                    touchPosition = touch.position;
+                    isSelecting = true;
+                    DetectTileSelection();
                     break;
 
                 case TouchPhase.Ended:
-                    isSwiping = false;
+                    isSelecting = false;
+                    ConfirmTileMove();
                     break;
             }
         }
         else if (Input.GetMouseButtonDown(0)) // For testing in editor
         {
-            startTouchPosition = Input.mousePosition;
-            isSwiping = true;
+            startTouchPosition = Input.mousePosition; // Set startTouchPosition
+            touchPosition = Input.mousePosition;
+            isSelecting = true;
+            DetectTileSelection();
         }
-        else if (Input.GetMouseButtonUp(0) && isSwiping)
+        else if (Input.GetMouseButtonUp(0) && isSelecting)
         {
-            endTouchPosition = Input.mousePosition;
-            isSwiping = false;
-            DetectSwipe();
+            isSelecting = false;
+            ConfirmTileMove();
         }
     }
 
-    private void DetectSwipe()
+    private void DetectTileSelection()
     {
-        Vector2 swipeDelta = endTouchPosition - startTouchPosition;
+        Vector3 worldPosition = Camera.main.ScreenToWorldPoint(touchPosition);
+        Vector2Int gridPosition = BoardManager.Instance.GetGridPositionFromWorldPosition(worldPosition);
 
-        if (swipeDelta.magnitude > 50) // Minimum swipe distance
+        if (BoardManager.Instance.IsWithinBounds(gridPosition))
         {
-            swipeDelta.Normalize();
+            OnTileSelected?.Invoke(gridPosition); // Notify listeners about the selected tile
+        }
+    }
 
-            Vector2Int direction = Vector2Int.zero;
+    private void ConfirmTileMove()
+    {
+        Vector3 worldPosition = Camera.main.ScreenToWorldPoint(touchPosition);
+        Vector2Int targetPosition = BoardManager.Instance.GetGridPositionFromWorldPosition(worldPosition);
 
-            if (Mathf.Abs(swipeDelta.x) > Mathf.Abs(swipeDelta.y))
-            {
-                direction = swipeDelta.x > 0 ? Vector2Int.right : Vector2Int.left;
-            }
-            else
-            {
-                direction = swipeDelta.y > 0 ? Vector2Int.up : Vector2Int.down;
-            }
-
-            // Calculate swipe distance in grid units
-            int swipeDistance = Mathf.FloorToInt((endTouchPosition - startTouchPosition).magnitude / (Screen.height / 6f));
-
-            OnSwipe?.Invoke(direction, swipeDistance); // Notify listeners about the swipe direction and distance
+        if (BoardManager.Instance.IsWithinBounds(targetPosition))
+        {
+            OnTileMoveConfirmed?.Invoke(targetPosition); // Notify listeners about the confirmed move
         }
     }
 }

@@ -35,16 +35,13 @@ public class Tile : MonoBehaviour
 
     private void UpdateVisuals()
     {
-        // Apply color with slight adjustments based on number value
-        Color adjustedColor = tileColor;
-        
-        // Slightly brighten colors for higher numbers to create visual hierarchy
-        float brightnessFactor = Mathf.Min(1.0f, 0.8f + (number * 0.05f));
-        adjustedColor = new Color(
-            Mathf.Clamp01(adjustedColor.r * brightnessFactor),
-            Mathf.Clamp01(adjustedColor.g * brightnessFactor),
-            Mathf.Clamp01(adjustedColor.b * brightnessFactor),
-            adjustedColor.a
+        // Apply color with systematic adjustments based on number value
+        float brightnessFactor = Mathf.Lerp(0.8f, 1.2f, Mathf.Log10(number + 1) / 3f);
+        Color adjustedColor = new Color(
+            Mathf.Clamp01(tileColor.r * brightnessFactor),
+            Mathf.Clamp01(tileColor.g * brightnessFactor),
+            Mathf.Clamp01(tileColor.b * brightnessFactor),
+            tileColor.a
         );
         
         spriteRenderer.color = adjustedColor;
@@ -53,9 +50,14 @@ public class Tile : MonoBehaviour
         {
             textMeshPro.text = number.ToString();
             
-            // Adjust text size based on number of digits
+            // Dynamically adjust text size based on number of digits
+            int digitCount = Mathf.FloorToInt(Mathf.Log10(Mathf.Max(1, number))) + 1;
             float baseSize = 8f;
-            textMeshPro.fontSize = (number >= 10) ? baseSize * 0.8f : baseSize;
+            textMeshPro.fontSize = baseSize * Mathf.Pow(0.85f, digitCount - 1);
+            
+            // Adjust contrast based on tile brightness
+            float luminance = 0.299f * adjustedColor.r + 0.587f * adjustedColor.g + 0.114f * adjustedColor.b;
+            textMeshPro.color = luminance > 0.5f ? Color.black : Color.white;
         }
     }
 
@@ -77,39 +79,21 @@ public class Tile : MonoBehaviour
 
     private void PlaySpawnAnimation()
     {
-        // Animate the tile spawning in
+        // Start with zero scale and slight rotation
         transform.localScale = Vector3.zero;
-        LeanTween.scale(gameObject, Vector3.one, 0.3f).setEaseOutBack();
-    }
-
-    public void PlayMergeAnimation()
-    {
-        // Play a pulse animation when tiles merge
-        LeanTween.scale(gameObject, new Vector3(1.2f, 1.2f, 1.2f), 0.1f)
-            .setEasePunch()
-            .setOnComplete(() => {
-                LeanTween.scale(gameObject, Vector3.one, 0.1f);
-            });
-    }
-
-    public void MoveTo(Vector2 targetPosition, float duration)
-    {
-        // Smoothly move the tile to the target position
-        StartCoroutine(MoveAnimation(targetPosition, duration));
-    }
-
-    private System.Collections.IEnumerator MoveAnimation(Vector2 targetPosition, float duration)
-    {
-        Vector2 startPosition = transform.position;
-        float elapsedTime = 0;
-
-        while (elapsedTime < duration)
+        transform.rotation = Quaternion.Euler(0, 0, Random.Range(-15f, 15f));
+        
+        // Sequence: scale up with bounce effect, then subtle rotation correction
+        LeanTween.scale(gameObject, Vector3.one, 0.35f).setEaseOutBack().setOvershoot(1.3f);
+        LeanTween.rotateZ(gameObject, 0f, 0.4f).setEaseOutElastic().setDelay(0.15f);
+        
+        // Add a subtle fade-in effect
+        SpriteRenderer sprite = GetComponent<SpriteRenderer>();
+        if (sprite != null)
         {
-            transform.position = Vector2.Lerp(startPosition, targetPosition, elapsedTime / duration);
-            elapsedTime += Time.deltaTime;
-            yield return null;
+            Color initialColor = sprite.color;
+            sprite.color = new Color(initialColor.r, initialColor.g, initialColor.b, 0.6f);
+            LeanTween.color(gameObject, initialColor, 0.3f);
         }
-
-        transform.position = targetPosition;
     }
 }

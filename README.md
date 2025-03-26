@@ -335,11 +335,13 @@ Rarity: ~5% chance per split to generate the rare tile
 
 ---
 
-### 🟨 Phase 3: Swipe Input & Tile Movement
+### 🟨 Phase 3: Click Input & Tile Movement
 - [x] Detect swipe gestures in 4 directions.
 - [x] Move tiles up to their number value.
-- [x] Calculate swipe distance using grid cell size.
-- [ ] Block movement when another tile is in the way.
+- [x] Select a tile with mouse click.
+- [x] Show valid movement options based on tile's number value.
+- [x] Move tile to selected destination with second click.
+- [x] Block movement when another tile is in the way.
 
 ---
 
@@ -348,7 +350,20 @@ Rarity: ~5% chance per split to generate the rare tile
 - [ ] Add numbers together on merge.
 - [ ] Split tiles when their value exceeds 12.
 
+### 🟨 Phase 5: Special Tile System
+- [ ] Implement `SpecialTile` base class
+- [ ] Create 4 common special tiles:
+  - Blaster, Painter, Freeze, Doubler
+- [ ] Create rare `ExpanderTile` that upgrades board to 7x7
+- [ ] Add UI interaction to activate special tiles
+
 ---
+
+### 🟨 Phase 6: Tile Spawning, Game Flow, and Game Over
+- [ ] Spawn one random tile after each player move
+- [ ] Skip spawn if `Freeze` is active
+- [ ] Detect game over when board is full and no merges are possible
+- [ ] Track and display current score
 
 ### 🟨 Phase 5: Special Tile System
 - [ ] Implement `SpecialTile` base class
