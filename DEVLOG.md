@@ -2,6 +2,29 @@
 
 ## 📅 Recent Updates
 
+### **[Date: 2025-03-28]**
+#### **Game Over System**
+- Added `GameOverManager` to detect when the board is full and no valid moves remain.
+- Integrated `GameOverState` to handle game over transitions.
+- Updated `UIManager` to display the game over screen with the final score.
+
+#### **Scoring System**
+- Implemented `ScoreManager` to track and update the player's score.
+- Added score display to the top bar UI.
+
+#### **Tile Splitting Enhancements**
+- Improved tile splitting logic to prioritize non-adjacent cells for better gameplay.
+- Added random color assignment for split tiles.
+- Fixed issues with split tile spawning in occupied cells.
+
+#### **Special Tile System**
+- Added `BlasterTile` to destroy adjacent tiles when activated.
+- Created `SpecialTileUI` to handle player interaction with special tiles.
+
+---
+
+## 📅 Previous Updates
+
 ### **[Date: 2025-03-27]**
 #### **Tile Splitting System**
 - Implemented full tile splitting functionality when merged tiles exceed value 12.
@@ -68,11 +91,10 @@
 ## 📅 Upcoming Tasks
 
 - **Special Tile System**:
-  - Implement special tiles with unique abilities (e.g., Blaster, Painter, Freeze, Doubler).
+  - Implement additional special tiles with unique abilities (e.g., Painter, Freeze, Doubler).
 
 - **Game Over Handling**:
-  - Detect when the board is full and no valid moves remain.
-  - Display game over screen with score and restart options.
+  - Add restart and main menu buttons to the game over screen.
 
 - **Polish & Optimization**:
   - Add more visual feedback for merging and splitting.
@@ -87,6 +109,8 @@
 - [x] Ensure starting configuration has valid moves.
 - [x] Click/Tap input and tile movement.
 - [x] Merge and split logic.
-- [ ] Special tile mechanics.
-- [ ] Game over handling and UI polish.
+- [x] Special tile mechanics (BlasterTile).
+- [x] Game over handling and UI polish.
+- [ ] Additional special tiles (Painter, Freeze, Doubler).
+- [ ] Sound effects and performance optimization.
 

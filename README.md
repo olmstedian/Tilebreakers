@@ -24,6 +24,7 @@
 - Enhanced tile visuals with dynamic brightness and outlines
 - Subtle grid background and cell indicators for better clarity
 - Simple scoring system with combo bonuses
+- Game over detection with a dedicated `GameOverManager`
 - Clean, modern visual style
 - Designed for infinite play and challenge modes
 
@@ -45,6 +46,7 @@
 - **GameManager**: Controls game flow, turn sequence, and game over conditions.
 - **GameStateManager**: Manages game states (e.g., InitState, PlayerTurnState, PostTurnState, GameOverState).
 - **InputManager**: Handles mouse and touch input for tile selection and movement.
+- **GameOverManager**: Detects game over conditions and transitions to the GameOverState.
 
 ### Board and Tile Management
 - **BoardManager**: Manages the grid, tile placement, and updates.
@@ -57,6 +59,10 @@
 - **SpecialTile Base Class**: Defines common behavior for all special tiles.
 - **BlasterTile**: Destroys adjacent tiles when activated.
 - **SpecialTileUI**: Handles player interaction with special tiles.
+
+### Scoring System
+- **ScoreManager**: Tracks and updates the player's score.
+- **UIManager**: Displays the score and move count in the top bar.
 
 ### Visual and UI Enhancements
 - **Dynamic Brightness**: Tiles brighten slightly as their numbers increase.
@@ -83,11 +89,6 @@
 - **Game Over Screen**:
   - Display final score and high score.
   - Add restart and main menu buttons.
-
-### Scoring System
-- **Implement Scoring**:
-  - Add points for merges and splits.
-  - Introduce combo bonuses for consecutive merges.
 
 ### Polish and Optimization
 - **Visual Feedback**:
