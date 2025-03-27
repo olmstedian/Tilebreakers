@@ -322,3 +322,83 @@ Before implementing advanced systems like GameStateManager and LevelManager, the
 - Layer in special tiles, polish, effects, and UI improvements
 
 ---
+
+## 🗂️ Scenes & Game States
+
+A full implementation of Tilebreakers will include multiple Unity scenes and a well-defined set of game states to handle transitions and logic flow clearly and scalably.
+
+---
+
+### 🎬 Unity Scenes
+
+#### `MainMenu`
+- Entry point of the game
+- Buttons: Play, Daily Challenge, Endless Mode, Settings
+- Display version and credits
+
+#### `Game`
+- Main gameplay scene
+- Loads level data and handles all in-game logic
+- Includes gameplay UI (score, pause, game over overlay)
+
+#### `LevelSelect` *(optional/future)*
+- List of unlocked or available challenge levels
+- Preview objectives and difficulty
+
+#### `GameOver` *(optional as separate scene or overlay)*
+- Final score display
+- Buttons: Play Again, Main Menu
+
+#### `Settings` *(overlay or modal preferred)*
+- Toggle music/SFX
+- Theme / colorblind options
+- Optionally accessible from Main Menu and Game scenes
+
+---
+
+### 🎮 GameState Enum & Flow
+
+Use this structure for `GameState.cs`:
+
+```csharp
+public enum GameState
+{
+    Boot,               // App initialization
+    MainMenu,           // Main menu screen
+    LoadingLevel,       // Preparing data / assets
+    InitGame,           // Spawning board and tiles
+    WaitingForInput,    // Awaiting player swipe/tap
+    MovingTiles,        // Tiles animating their movement
+    MergingTiles,       // Handling merges
+    SplittingTiles,     // Handling tile splits
+    SpawningNewTile,    // Dropping a random new tile
+    SpecialTileAction,  // Waiting for special tile use
+    CheckingGameOver,   // Verifying end condition
+    GameOver,           // Showing result
+    Paused              // Frozen state (pause menu)
+}
+```
+
+---
+
+### 🔁 Game Flow Overview
+
+```
+MainMenu → LoadingLevel → InitGame → WaitingForInput
+→ MovingTiles → MergingTiles → SplittingTiles
+→ SpawningNewTile → CheckingGameOver
+→ GameOver or back to WaitingForInput
+```
+
+---
+
+### 🧩 Optional Advanced States (Future Growth)
+
+| State               | Description |
+|----------------------|-------------|
+| `UndoingMove`        | Handling undo system |
+| `ChallengeComplete`  | Level-based victory |
+| `Reviving`           | Ad-based revive |
+| `VictoryAnimation`   | Extra feedback after winning |
+
+---

@@ -19,6 +19,7 @@ public class InitState : GameState
 {
     public override void Enter()
     {
+        Debug.Log("InitState: Entering InitState...");
         // Initialize the game board
         BoardManager.Instance.GenerateRandomStartingTiles();
     }
@@ -31,6 +32,7 @@ public class InitState : GameState
 
     public override void Exit()
     {
+        Debug.Log("InitState: Exiting InitState...");
         // No additional logic needed
     }
 }
@@ -48,6 +50,7 @@ public class PlayerTurnState : GameState
 
     public override void Enter()
     {
+        Debug.Log("PlayerTurnState: Entering PlayerTurnState...");
         // Always reset selection state on enter - crucial for merge cleanup
         ClearAllSelectionState();
         hasMoved = false;
@@ -152,6 +155,7 @@ public class PlayerTurnState : GameState
 
     public override void Exit()
     {
+        Debug.Log("PlayerTurnState: Exiting PlayerTurnState...");
         // CRITICAL: Ensure all selection state is cleared when exiting
         ClearAllSelectionState();
     }
@@ -177,6 +181,7 @@ public class PostTurnState : GameState
 {
     public override void Enter()
     {
+        Debug.Log("PostTurnState: Entering PostTurnState...");
         // Make extra sure selection state is cleared
         PlayerTurnState.ClearAllSelectionState();
         
@@ -201,6 +206,7 @@ public class PostTurnState : GameState
 
     public override void Exit()
     {
+        Debug.Log("PostTurnState: Exiting PostTurnState...");
         // No additional logic needed
     }
 }
@@ -212,7 +218,10 @@ public class GameOverState : GameState
 {
     public override void Enter()
     {
-        // Show game over UI, calculate final score, etc.
+        Debug.Log("GameOverState: Entering GameOverState...");
+        Debug.Log("GameOverState: Game over...");
+        // Show game over UI
+        UIManager.Instance.ShowGameOverScreen(ScoreManager.Instance.GetCurrentScore());
     }
 
     public override void Update()
@@ -228,6 +237,78 @@ public class GameOverState : GameState
 
     public override void Exit()
     {
-        // No additional logic needed
+        Debug.Log("GameOverState: Exiting GameOverState...");
+        Debug.Log("GameOverState: Exiting game over...");
+        // Hide game over UI
+        UIManager.Instance.HideGameOverScreen();
     }
 }
+
+/// <summary>
+/// Boot state - handles app initialization and splash screen display.
+/// </summary>
+public class BootState : GameState
+{
+    public override void Enter()
+    {
+        Debug.Log("BootState: Entering BootState...");
+        Debug.Log("BootState: Initializing application...");
+        UIManager.Instance.ShowSplashScreen();
+
+        // Schedule transition to MainMenuState
+        Debug.Log("BootState: Scheduling transition to MainMenuState.");
+        GameStateManager.Instance.SetStateWithDelay(new MainMenuState(), 2.0f);
+    }
+
+    public override void Exit()
+    {
+        Debug.Log("BootState: Exiting BootState...");
+        UIManager.Instance.HideSplashScreen();
+
+        // Cancel delayed transition if exiting BootState
+        GameStateManager.Instance.SetStateWithDelay(null, 0); // Clear any delayed transitions
+    }
+
+    public override void Update()
+    {
+        // Prevent delayed transition if the state has already changed
+        if (!GameStateManager.Instance.IsInState<BootState>())
+        {
+            Debug.LogWarning("BootState: Canceling delayed transition to MainMenuState because the state has changed.");
+        }
+    }
+}
+
+/// <summary>
+/// Main menu state - displays the main menu and waits for player input to start the game.
+/// </summary>
+public class MainMenuState : GameState
+{
+    public override void Enter()
+    {
+        Debug.Log("MainMenuState: Entering MainMenuState...");
+        Debug.Log("MainMenuState: Entering main menu...");
+        // Show the main menu UI
+        UIManager.Instance.ShowMainMenu();
+    }
+
+    public override void Update()
+    {
+        // No update logic needed for MainMenuState
+    }
+
+    public override void HandleInput(Vector2Int gridPosition)
+    {
+        // Start the game when the player selects "Play"
+        GameStateManager.Instance.SetState(new InitState());
+    }
+
+    public override void Exit()
+    {
+        Debug.Log("MainMenuState: Exiting MainMenuState...");
+        Debug.Log("MainMenuState: Exiting main menu...");
+        // Hide the main menu UI
+        UIManager.Instance.HideMainMenu();
+    }
+}
+
