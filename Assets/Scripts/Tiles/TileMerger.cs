@@ -26,18 +26,24 @@ public class TileMerger : MonoBehaviour
         Object.Destroy(movingTile.gameObject);
 
         // Track the merged cell
-        BoardManager.Instance.lastMergedCellPosition = BoardManager.Instance.GetGridPositionFromWorldPosition(staticTile.transform.position);
+        Vector2Int mergedPosition = BoardManager.Instance.GetGridPositionFromWorldPosition(staticTile.transform.position);
+        BoardManager.Instance.lastMergedCellPosition = mergedPosition;
 
         // Add score for the merge
         ScoreManager.Instance.AddMergeScore(staticTile.number);
 
         staticTile.ClearSelectionState();
 
+        // Trigger special tile spawning after the merge
+        BoardManager.Instance.TriggerSpecialTileSpawn(mergedPosition);
+
         // Delegate splitting logic to TileSplitter
         if (staticTile.number > splitThreshold)
         {
-            TileSplitter.SplitTile(staticTile, BoardManager.Instance.GetGridPositionFromWorldPosition(staticTile.transform.position));
+            TileSplitter.SplitTile(staticTile, mergedPosition);
         }
+
+        staticTile.ClearSelectionState();
 
         return true;
     }

@@ -31,12 +31,6 @@ public class TileSplitter : MonoBehaviour
         // Destroy the original tile
         Object.Destroy(tile.gameObject);
 
-        // Spawn a special tile at the original position
-        if (Random.value < Constants.SPECIAL_TILE_CHANCE)
-        {
-            BoardManager.Instance.SpawnSpecialTile(originalPosition, "Blaster");
-        }
-
         // Create new tiles at the random positions
         for (int i = 0; i < splitCount; i++)
         {
@@ -48,6 +42,13 @@ public class TileSplitter : MonoBehaviour
 
             // Create new tile
             CreateTileAtPosition(BoardManager.Instance.tilePrefab, spawnPos, value, randomColor);
+        }
+
+        // Ensure one BlasterTile is spawned at a random available position
+        if (availablePositions.Count > 0 && SpecialTileManager.Instance != null)
+        {
+            Vector2Int blasterTilePosition = availablePositions[Random.Range(0, availablePositions.Count)];
+            SpecialTileManager.Instance.SpawnSpecialTile(blasterTilePosition, "Blaster");
         }
 
         // Add score for the split

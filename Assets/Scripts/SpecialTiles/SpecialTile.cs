@@ -2,44 +2,25 @@ using UnityEngine;
 
 public abstract class SpecialTile : MonoBehaviour
 {
-    public Color tileColor;
     public string specialAbilityName;
 
-    private SpriteRenderer spriteRenderer;
-
-    protected virtual void Awake()
+    private void OnMouseDown()
     {
-        spriteRenderer = GetComponent<SpriteRenderer>();
-        if (spriteRenderer == null)
+        // Route special tile activation through GameStateManager
+        if (GameStateManager.Instance != null && GameStateManager.Instance.IsInState<SpecialTileActivationState>())
         {
-            Debug.LogError("SpecialTile requires a SpriteRenderer component.");
-        }
-    }
-
-    public void Initialize(Color color, string abilityName)
-    {
-        tileColor = color;
-        specialAbilityName = abilityName;
-
-        if (spriteRenderer != null)
-        {
-            spriteRenderer.color = tileColor;
+            GameStateManager.Instance.ActivateSpecialTile(BoardManager.Instance.GetGridPositionFromWorldPosition(transform.position));
         }
     }
 
     public void Activate()
     {
-        // Add score for activating the special tile
-        ScoreManager.Instance.AddSpecialTileBonus();
-
-        // Call the specific ability implementation
+        Debug.Log($"SpecialTile: Activating {specialAbilityName} ability.");
         ActivateAbility();
+
+        // Return to game loop flow after activation
+        GameStateManager.Instance?.SetState(new CheckingGameOverState());
     }
 
     public abstract void ActivateAbility();
-
-    protected void DestroyTile()
-    {
-        Destroy(gameObject);
-    }
 }

@@ -153,4 +153,44 @@ public class GameStateManager : MonoBehaviour
             tile.ClearSelectionState();
         }
     }
+
+    public void ActivateSpecialTile(Vector2Int gridPosition)
+    {
+        Debug.Log($"GameStateManager: Activating special tile at position {gridPosition}.");
+
+        SpecialTile specialTile = SpecialTileManager.Instance.GetSpecialTileAtPosition(gridPosition);
+        if (specialTile != null)
+        {
+            specialTile.Activate();
+        }
+        else
+        {
+            Debug.LogWarning("GameStateManager: No special tile found at the specified position.");
+        }
+
+        // Return to game loop flow
+        SetState(new CheckingGameOverState());
+    }
+
+    public void SpawnSpecialTile(Vector2Int position, string abilityName)
+    {
+        Debug.Log($"GameStateManager: Transitioning to SpecialTileSpawningState for '{abilityName}' at {position}.");
+        SetState(new SpecialTileSpawningState(position, abilityName));
+    }
+
+    public void TriggerSpecialTileActivation()
+    {
+        Debug.Log("GameStateManager: Triggering special tile activation.");
+
+        // Check if there are any active special tiles
+        if (SpecialTileManager.Instance != null && SpecialTileManager.Instance.HasActiveSpecialTiles())
+        {
+            SetState(new SpecialTileActionState());
+        }
+        else
+        {
+            Debug.LogWarning("GameStateManager: No active special tiles to activate.");
+            SetState(new CheckingGameOverState());
+        }
+    }
 }

@@ -8,7 +8,6 @@ public class GameManager : MonoBehaviour
 
     [SerializeField] private GameObject gameStateManagerPrefab;
     [SerializeField] private GameObject specialTileUIPrefab; // Keep this for UI
-    [SerializeField] private GameObject blasterTilePrefab; // Ensure this is assigned in the Inspector
 
     private void Awake()
     {
@@ -37,7 +36,8 @@ public class GameManager : MonoBehaviour
         // Initialize SpecialTileUI
         if (specialTileUIPrefab != null)
         {
-            Instantiate(specialTileUIPrefab);
+            GameObject specialTileUI = Instantiate(specialTileUIPrefab);
+            specialTileUI.SetActive(false); // Ensure the prefab is not visible in the scene
         }
 
         // Load the first level using LevelManager
@@ -66,5 +66,17 @@ public class GameManager : MonoBehaviour
         {
             LevelManager.Instance.RestartCurrentLevel();
         }
+    }
+
+    public void ActivateSpecialTile(Vector2Int gridPosition)
+    {
+        Debug.Log("GameManager: Activating special tile at position " + gridPosition);
+        GameStateManager.Instance?.SetState(new SpecialTileActivationState());
+    }
+
+    public void SpawnSpecialTile(Vector2Int position, string abilityName)
+    {
+        Debug.Log($"GameManager: Spawning special tile '{abilityName}' at position {position}");
+        GameStateManager.Instance?.SetState(new SpecialTileSpawningState(position, abilityName));
     }
 }

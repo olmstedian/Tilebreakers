@@ -149,7 +149,26 @@ public class WaitingForInputState : GameState
 
     public override void HandleInput(Vector2Int gridPosition)
     {
-        Debug.Log($"WaitingForInputState: Player selected grid position {gridPosition}.");
+        // Check if the position contains a special tile
+        SpecialTile specialTile = SpecialTileManager.Instance.GetSpecialTileAtPosition(gridPosition);
+        if (specialTile != null)
+        {
+            specialTile.Activate();
+            GameStateManager.Instance.SetState(new CheckingGameOverState());
+            return;
+        }
+
+        // Handle regular tile input
+        Tile tile = BoardManager.Instance.GetTileAtPosition(gridPosition);
+        if (tile != null)
+        {
+            Debug.Log($"WaitingForInputState: Player selected regular tile at {gridPosition}.");
+            // Proceed with regular tile logic
+        }
+        else
+        {
+            Debug.LogWarning("WaitingForInputState: No tile found at the selected position.");
+        }
 
         // Transition to MovingTilesState after input is handled
         GameStateManager.Instance.SetState(new MovingTilesState());
@@ -311,7 +330,32 @@ public class SpawningNewTileState : GameState
 }
 
 /// <summary>
-/// Checking game over state - checks if the game is over.
+/// Special tile action state - handles the activation of special tiles.
+/// </summary>
+public class SpecialTileActionState : GameState
+{
+    public override void Enter()
+    {
+        Debug.Log("SpecialTileActionState: Activating all special tiles...");
+        SpecialTileManager.Instance.ActivateAllSpecialTiles();
+        GameStateManager.Instance.SetState(new CheckingGameOverState());
+    }
+
+    public override void Update() { }
+
+    public override void Exit()
+    {
+        Debug.Log("SpecialTileActionState: Exiting special tile action state.");
+    }
+
+    public override void HandleInput(Vector2Int gridPosition)
+    {
+        // No input is handled in this state
+    }
+}
+
+/// <summary>
+/// Checking game over state - checks if the game is over or transitions to SpecialTileAction.
 /// </summary>
 public class CheckingGameOverState : GameState
 {
@@ -322,10 +366,10 @@ public class CheckingGameOverState : GameState
         {
             GameStateManager.Instance.SetState(new GameOverState());
         }
-        else if (LevelManager.Instance != null && LevelManager.Instance.IsLevelComplete())
+        else if (SpecialTileManager.Instance != null && SpecialTileManager.Instance.GetSpecialTileAtPosition(BoardManager.Instance.lastMergedCellPosition ?? Vector2Int.zero) != null)
         {
-            Debug.Log("CheckingGameOverState: Level complete!");
-            LevelManager.Instance.AdvanceToNextLevel();
+            Debug.Log("CheckingGameOverState: Special tile detected. Transitioning to SpecialTileActionState.");
+            GameStateManager.Instance.SetState(new SpecialTileActionState());
         }
         else
         {
@@ -393,6 +437,72 @@ public class PauseState : GameState
     {
         Debug.Log("PauseState: Exiting PauseState. Game is resuming.");
         Time.timeScale = 1f; // Resume the game
+    }
+}
+
+/// <summary>
+/// Special tile activation state - handles player interaction with special tiles.
+/// </summary>
+public class SpecialTileActivationState : GameState
+{
+    public override void Enter()
+    {
+        Debug.Log("SpecialTileActivationState: Waiting for player to activate a special tile...");
+    }
+
+    public override void Update()
+    {
+        // No specific update logic for this state
+    }
+
+    public override void HandleInput(Vector2Int gridPosition)
+    {
+        SpecialTile specialTile = SpecialTileManager.Instance.GetSpecialTileAtPosition(gridPosition);
+        if (specialTile != null)
+        {
+            GameStateManager.Instance.ActivateSpecialTile(gridPosition);
+        }
+        else
+        {
+            Debug.LogWarning("SpecialTileActivationState: No special tile found at the selected position.");
+        }
+    }
+
+    public override void Exit()
+    {
+        Debug.Log("SpecialTileActivationState: Exiting state.");
+    }
+}
+
+/// <summary>
+/// Special tile spawning state - handles spawning of special tiles.
+/// </summary>
+public class SpecialTileSpawningState : GameState
+{
+    private Vector2Int spawnPosition;
+    private string specialAbilityName;
+
+    public SpecialTileSpawningState(Vector2Int spawnPosition, string specialAbilityName)
+    {
+        this.spawnPosition = spawnPosition;
+        this.specialAbilityName = specialAbilityName;
+    }
+
+    public override void Enter()
+    {
+        Debug.Log($"SpecialTileSpawningState: Spawning special tile '{specialAbilityName}' at {spawnPosition}.");
+        SpecialTileManager.Instance.SpawnSpecialTile(spawnPosition, specialAbilityName);
+        GameStateManager.Instance.SetState(new WaitingForInputState());
+    }
+
+    public override void Update()
+    {
+        // No specific update logic for this state
+    }
+
+    public override void Exit()
+    {
+        Debug.Log("SpecialTileSpawningState: Exiting state.");
     }
 }
 

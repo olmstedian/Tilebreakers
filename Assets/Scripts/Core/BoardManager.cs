@@ -28,6 +28,8 @@ public class BoardManager : MonoBehaviour
     private Vector2Int selectedTilePosition;
     public Vector2Int? lastMergedCellPosition;
 
+    private List<SpecialTile> specialTiles = new List<SpecialTile>();
+
     private void Awake()
     {
         if (Instance == null)
@@ -253,7 +255,7 @@ public class BoardManager : MonoBehaviour
         board[position.x, position.y] = null;
     }
 
-    private void MarkCellAsOccupied(Vector2Int position)
+    public void MarkCellAsOccupied(Vector2Int position)
     {
         emptyCells.Remove(position);
     }
@@ -811,29 +813,7 @@ public class BoardManager : MonoBehaviour
 
     public void SpawnSpecialTile(Vector2Int position, string abilityName)
     {
-        if (!IsWithinBounds(position) || !IsCellEmpty(position)) return;
-
-        GameObject specialTilePrefab = null;
-
-        // Select the appropriate prefab based on the ability name
-        switch (abilityName)
-        {
-            case "Blaster":
-                specialTilePrefab = Resources.Load<GameObject>("Prefabs/SpecialTiles/BlasterTile");
-                break;
-            // Add cases for other special tiles here
-        }
-
-        if (specialTilePrefab != null)
-        {
-            GameObject specialTileObj = Instantiate(specialTilePrefab, GetWorldPosition(position), Quaternion.identity, transform);
-            SpecialTile specialTile = specialTileObj.GetComponent<SpecialTile>();
-            if (specialTile != null)
-            {
-                specialTile.Initialize(GetRandomTileColor(), abilityName);
-                MarkCellAsOccupied(position);
-            }
-        }
+        SpecialTileManager.Instance?.SpawnSpecialTile(position, abilityName);
     }
 
     public void PerformSplitOperation(Tile tile, Vector2Int position)
@@ -842,5 +822,60 @@ public class BoardManager : MonoBehaviour
         {
             TileSplitter.SplitTile(tile, position);
         }
+    }
+
+    /// <summary>
+    /// Triggers the spawning of a special tile at a specified position.
+    /// </summary>
+    /// <param name="position">The grid position where the special tile should spawn.</param>
+    public void TriggerSpecialTileSpawn(Vector2Int position)
+    {
+        if (Random.value < Constants.SPECIAL_TILE_CHANCE)
+        {
+            if (SpecialTileManager.Instance != null)
+            {
+                SpecialTileManager.Instance.SpawnSpecialTile(position, "Blaster");
+            }
+            else
+            {
+                Debug.LogWarning("BoardManager: SpecialTileManager is not initialized. Cannot spawn special tiles.");
+            }
+        }
+    }
+
+    public void HandleSpecialTileActivation(Vector2Int gridPosition)
+    {
+        // Use SpecialTileManager to handle special tiles
+        SpecialTile specialTile = SpecialTileManager.Instance.GetSpecialTileAtPosition(gridPosition);
+        if (specialTile != null)
+        {
+            Debug.Log($"BoardManager: Activating special tile '{specialTile.specialAbilityName}' at {gridPosition}");
+            specialTile.Activate();
+        }
+        else
+        {
+            Debug.LogWarning("BoardManager: No special tile found at the selected position.");
+        }
+    }
+
+    public void RegisterSpecialTile(SpecialTile specialTile)
+    {
+        if (!specialTiles.Contains(specialTile))
+        {
+            specialTiles.Add(specialTile);
+        }
+    }
+
+    public void UnregisterSpecialTile(SpecialTile specialTile)
+    {
+        if (specialTiles.Contains(specialTile))
+        {
+            specialTiles.Remove(specialTile);
+        }
+    }
+
+    public IEnumerable<Vector2Int> GetAllEmptyCells()
+    {
+        return emptyCells;
     }
 }

@@ -32,24 +32,38 @@ public class InputManager : MonoBehaviour
             if (touch.phase == TouchPhase.Began)
             {
                 touchPosition = touch.position;
-                isSelecting = true;
-                DetectTileSelection();
+
+                if (GameStateManager.Instance.IsInState<WaitingForInputState>())
+                {
+                    DetectTileSelection();
+                }
+                else if (GameStateManager.Instance.IsInState<SpecialTileActionState>())
+                {
+                    Debug.Log("InputManager: Waiting for special tile action to complete.");
+                    // Optionally, wait for animations or other actions to finish
+                }
             }
-            else if (touch.phase == TouchPhase.Ended)
+            else if (touch.phase == TouchPhase.Ended && GameStateManager.Instance.IsInState<WaitingForInputState>())
             {
-                isSelecting = false;
                 ConfirmTileMove();
             }
         }
         else if (Input.GetMouseButtonDown(0)) // For testing in editor
         {
             touchPosition = Input.mousePosition;
-            isSelecting = true;
-            DetectTileSelection();
+
+            if (GameStateManager.Instance.IsInState<WaitingForInputState>())
+            {
+                DetectTileSelection();
+            }
+            else if (GameStateManager.Instance.IsInState<SpecialTileActionState>())
+            {
+                Debug.Log("InputManager: Waiting for special tile action to complete.");
+                // Optionally, wait for animations or other actions to finish
+            }
         }
-        else if (Input.GetMouseButtonUp(0) && isSelecting)
+        else if (Input.GetMouseButtonUp(0) && GameStateManager.Instance.IsInState<WaitingForInputState>())
         {
-            isSelecting = false;
             ConfirmTileMove();
         }
     }
@@ -59,10 +73,22 @@ public class InputManager : MonoBehaviour
         Vector3 worldPosition = Camera.main.ScreenToWorldPoint(touchPosition);
         Vector2Int gridPosition = BoardManager.Instance.GetGridPositionFromWorldPosition(worldPosition);
 
-        if (BoardManager.Instance.IsWithinBounds(gridPosition) &&
-            GameStateManager.Instance?.IsInState<WaitingForInputState>() == true)
+        if (BoardManager.Instance.IsWithinBounds(gridPosition))
         {
-            OnTileSelected?.Invoke(gridPosition);
+            // Check if the selected tile is a special tile
+            SpecialTile specialTile = SpecialTileManager.Instance.GetSpecialTileAtPosition(gridPosition);
+            if (specialTile != null)
+            {
+                Debug.Log($"InputManager: Special tile detected at {gridPosition}. Activating...");
+                specialTile.Activate();
+                return;
+            }
+
+            // Handle regular tile selection
+            if (GameStateManager.Instance?.IsInState<WaitingForInputState>() == true)
+            {
+                OnTileSelected?.Invoke(gridPosition);
+            }
         }
     }
 
