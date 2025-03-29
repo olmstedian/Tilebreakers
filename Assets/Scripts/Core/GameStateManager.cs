@@ -38,21 +38,38 @@ public class GameStateManager : MonoBehaviour
         OnStateChanged?.Invoke(currentState);
     }
 
-    public void SetStateWithDelay(GameState newState, float delay)
+    public void CancelDelayedTransition()
     {
-        // Prevent scheduling a delayed transition to the same state
         if (delayedTransition != null)
         {
-            Debug.LogWarning($"GameStateManager: Canceling existing delayed transition to {newState?.GetType().Name ?? "None"}.");
+            Debug.Log("GameStateManager: Canceling existing delayed transition.");
             StopCoroutine(delayedTransition);
             delayedTransition = null;
         }
+    }
 
-        // If newState is null or matches the current state, do not schedule a new transition
-        if (newState == null || currentState?.GetType() == newState.GetType())
+    public void SetStateWithDelay(GameState newState, float delay)
+    {
+        // If newState is null, log and return immediately
+        if (newState == null)
         {
-            Debug.LogWarning($"GameStateManager: Skipping delayed transition to {newState?.GetType().Name ?? "None"} because it matches the current state.");
+            Debug.LogWarning("GameStateManager: Attempted to schedule a delayed transition to 'None'. Ignoring.");
             return;
+        }
+
+        // Prevent scheduling a delayed transition to the same state
+        if (currentState?.GetType() == newState.GetType())
+        {
+            Debug.LogWarning($"GameStateManager: Skipping delayed transition to {newState.GetType().Name} because it matches the current state.");
+            return;
+        }
+
+        // Cancel any existing delayed transition
+        if (delayedTransition != null)
+        {
+            Debug.Log($"GameStateManager: Canceling existing delayed transition to {newState.GetType().Name}.");
+            StopCoroutine(delayedTransition);
+            delayedTransition = null;
         }
 
         Debug.Log($"GameStateManager: Delaying transition to {newState.GetType().Name} by {delay} seconds.");
@@ -64,7 +81,7 @@ public class GameStateManager : MonoBehaviour
         yield return new WaitForSeconds(delay);
 
         // Ensure the current state is still valid for the delayed transition
-        if (currentState?.GetType() != newState?.GetType())
+        if (currentState?.GetType() == newState?.GetType())
         {
             Debug.LogWarning($"GameStateManager: Delayed transition to {newState.GetType().Name} canceled because the state changed to {currentState?.GetType().Name ?? "None"}.");
             delayedTransition = null;
@@ -85,7 +102,7 @@ public class GameStateManager : MonoBehaviour
     {
         BoardManager.Instance?.ClearBoard();
         ScoreManager.Instance?.ResetScore();
-        SetState(new InitState());
+        SetState(new InitGameState());
     }
 
     public void GoToMainMenu()
@@ -105,6 +122,24 @@ public class GameStateManager : MonoBehaviour
         return currentState?.GetType().Name ?? "None";
     }
 
+    public void PauseGame()
+    {
+        Debug.Log("GameStateManager: PauseGame called. Transitioning to PauseState.");
+        SetState(new PauseState());
+    }
+
+    public void ResumeGame()
+    {
+        Debug.Log("GameStateManager: ResumeGame called. Transitioning back to WaitingForInputState.");
+        SetState(new WaitingForInputState());
+    }
+
+    public void LoadLevel()
+    {
+        Debug.Log("GameStateManager: Loading level...");
+        SetState(new LoadingLevelState());
+    }
+
     private void OnDestroy()
     {
         InputManager.OnTileSelected -= HandleInput;
@@ -112,8 +147,7 @@ public class GameStateManager : MonoBehaviour
 
     public void ClearAllSelections()
     {
-        PlayerTurnState.ClearAllSelectionState();
-        BoardManager.Instance?.ClearSelection();
+        BoardManager.Instance?.ClearAllSelectionState();
         foreach (Tile tile in FindObjectsOfType<Tile>())
         {
             tile.ClearSelectionState();

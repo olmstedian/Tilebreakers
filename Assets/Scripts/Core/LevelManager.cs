@@ -27,12 +27,22 @@ public class LevelManager : MonoBehaviour
     public bool IsLevelComplete()
     {
         // Placeholder logic
-        return ScoreManager.Instance.CurrentScore >= currentLevel.scoreTarget;
+        return ScoreManager.Instance.GetCurrentScore() >= currentLevel.scoreTarget;
     }
 
     public void AdvanceToNextLevel()
     {
         Debug.Log("Level complete! Load next level here...");
         // Implement logic to move to the next LevelData
+    }
+
+    public void CheckLevelCompletion()
+    {
+        int currentScore = ScoreManager.Instance.GetCurrentScore(); // Use GetCurrentScore() instead of CurrentScore
+        if (currentScore >= currentLevel.scoreTarget)
+        {
+            Debug.Log("Level Complete!");
+            AdvanceToNextLevel();
+        }
     }
 }

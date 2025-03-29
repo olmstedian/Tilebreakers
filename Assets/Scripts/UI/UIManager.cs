@@ -15,6 +15,9 @@ public class UIManager : MonoBehaviour
     [SerializeField] private GameObject topBarPanel;
     [SerializeField] private TMPro.TextMeshProUGUI scoreText;
     [SerializeField] private TMPro.TextMeshProUGUI moveText;
+    [SerializeField] private GameObject pausePanel;
+    [SerializeField] private UnityEngine.UI.Button pauseButton;
+    [SerializeField] private UnityEngine.UI.Button resumeButton;
 
     private int moveCount;
 
@@ -51,6 +54,16 @@ public class UIManager : MonoBehaviour
         if (quitButton != null)
         {
             quitButton.onClick.AddListener(QuitGame);
+        }
+
+        if (pauseButton != null)
+        {
+            pauseButton.onClick.AddListener(PauseGame);
+        }
+
+        if (resumeButton != null)
+        {
+            resumeButton.onClick.AddListener(ResumeGame);
         }
 
         // Initialize move count
@@ -120,7 +133,17 @@ public class UIManager : MonoBehaviour
     public void GoToMainMenu()
     {
         Debug.Log("UIManager: GoToMainMenu button clicked.");
+
+        // Hide the Pause Panel if it is active
+        if (pausePanel != null && pausePanel.activeSelf)
+        {
+            pausePanel.SetActive(false);
+        }
+
+        // Hide the Game Over Screen if it is active
         HideGameOverScreen();
+
+        // Transition to MainMenuState
         GameStateManager.Instance.SetState(new MainMenuState());
     }
 
@@ -128,7 +151,7 @@ public class UIManager : MonoBehaviour
     {
         Debug.Log("UIManager: StartGame button clicked.");
         HideMainMenu();
-        GameStateManager.Instance.SetState(new InitState());
+        GameStateManager.Instance.SetState(new InitGameState());
     }
 
     public void QuitGame()
@@ -164,5 +187,25 @@ public class UIManager : MonoBehaviour
         moveCount = 0;
         UpdateMoveText();
         UpdateScore(0);
+    }
+
+    // Show the pause panel and transition to PauseState
+    public void PauseGame()
+    {
+        if (pausePanel != null)
+        {
+            pausePanel.SetActive(true);
+        }
+        GameStateManager.Instance.SetState(new PauseState());
+    }
+
+    // Hide the pause panel and return to the previous state
+    public void ResumeGame()
+    {
+        if (pausePanel != null)
+        {
+            pausePanel.SetActive(false);
+        }
+        GameStateManager.Instance.SetState(new WaitingForInputState());
     }
 }

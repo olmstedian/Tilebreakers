@@ -26,8 +26,6 @@ public class GameManager : MonoBehaviour
         Debug.Log("GameManager: Starting game...");
         GameStateManager.Instance?.SetState(new BootState());
 
-        Invoke(nameof(InitializeGame), 0.1f);
-
         // Initialize SpecialTileUI
         if (specialTileUIPrefab != null)
         {
@@ -38,14 +36,8 @@ public class GameManager : MonoBehaviour
         // The BlasterTilePrefab should only be instantiated dynamically when needed
     }
 
-    private void InitializeGame()
-    {
-        Debug.Log("GameManager: Initializing game...");
-        GameStateManager.Instance?.SetState(new InitState());
-    }
-
     public void EndTurn()
     {
-        GameStateManager.Instance?.SetState(new PostTurnState());
+        GameStateManager.Instance?.SetState(new SpawningNewTileState());
     }
 }

@@ -27,6 +27,15 @@ public abstract class SpecialTile : MonoBehaviour
         }
     }
 
+    public void Activate()
+    {
+        // Add score for activating the special tile
+        ScoreManager.Instance.AddSpecialTileBonus();
+
+        // Call the specific ability implementation
+        ActivateAbility();
+    }
+
     public abstract void ActivateAbility();
 
     protected void DestroyTile()

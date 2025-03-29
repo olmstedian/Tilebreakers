@@ -26,6 +26,7 @@ public class BoardManager : MonoBehaviour
 
     private Tile selectedTile;
     private Vector2Int selectedTilePosition;
+    public Vector2Int? lastMergedCellPosition;
 
     private void Awake()
     {
@@ -46,16 +47,20 @@ public class BoardManager : MonoBehaviour
         prioritizedSpawnLocations = new Queue<Vector2Int>();
         InitializeGrid();
         CreateGridBackground();
-        
-        // Subscribe to the events - these should use instance methods, not local functions
+
+        // Subscribe to the events
         InputManager.OnTileSelected += HandleTileSelection;
         InputManager.OnTileMoveConfirmed += HandleTileMoveConfirmation;
-        
-        // Only initialize tiles if we're NOT using GameStateManager (as it will handle this)
-        if (GameStateManager.Instance == null)
-        {
-            GenerateRandomStartingTiles();
-        }
+
+        // Remove automatic tile initialization
+        // Board initialization will now be triggered explicitly in InitGameState
+    }
+
+    // Add a new method to initialize the board explicitly
+    public void InitializeBoard()
+    {
+        ClearBoard(); // Ensure the board is cleared before initialization
+        GenerateRandomStartingTiles();
     }
 
     private void InitializeGrid()
@@ -253,10 +258,25 @@ public class BoardManager : MonoBehaviour
         emptyCells.Remove(position);
     }
 
-    public void GenerateRandomStartingTiles(int minTiles = Constants.MIN_START_TILES, int maxTiles = Constants.MAX_START_TILES)
+    public void GenerateRandomStartingTiles(int minTiles = Constants.MIN_START_TILES, int maxTiles = Constants.MAX_START_TILES, Vector2Int? excludePosition = null)
     {
         int tileCount = Random.Range(minTiles, maxTiles + 1);
         List<Vector2Int> availableCells = new List<Vector2Int>(emptyCells);
+
+        // Exclude adjacent cells of the specified position
+        if (excludePosition.HasValue)
+        {
+            Vector2Int mergedCell = excludePosition.Value;
+            Vector2Int[] adjacentPositions = new Vector2Int[]
+            {
+                mergedCell + Vector2Int.up,
+                mergedCell + Vector2Int.down,
+                mergedCell + Vector2Int.left,
+                mergedCell + Vector2Int.right
+            };
+
+            availableCells.RemoveAll(pos => pos == mergedCell || adjacentPositions.Contains(pos));
+        }
 
         for (int i = 0; i < tileCount && i < availableCells.Count; i++)
         {
@@ -327,9 +347,24 @@ public class BoardManager : MonoBehaviour
         ClearHighlights();
     }
 
+    /// <summary>
+    /// Clears all selection states, including selected tiles and highlights.
+    /// </summary>
+    public void ClearAllSelectionState()
+    {
+        if (selectedTile != null)
+        {
+            selectedTile.ClearSelectionState();
+            selectedTile = null;
+        }
+
+        selectedTilePosition = Vector2Int.zero;
+        ClearHighlights();
+    }
+
     private void HandleTileSelection(Vector2Int gridPosition)
     {
-        if (GameStateManager.Instance != null && !GameStateManager.Instance.IsInState<PlayerTurnState>())
+        if (GameStateManager.Instance != null && !GameStateManager.Instance.IsInState<WaitingForInputState>())
         {
             return;
         }
@@ -346,7 +381,7 @@ public class BoardManager : MonoBehaviour
                     Tile tempSourceTile = selectedTile;
                     Vector2Int tempSourcePos = selectedTilePosition;
 
-                    ClearSelection();
+                    ClearAllSelectionState();
 
                     StartCoroutine(MoveTileToTargetForMerge(tempSourceTile, tile, () =>
                     {
@@ -442,7 +477,7 @@ public class BoardManager : MonoBehaviour
     private void HandleTileMoveConfirmation(Vector2Int targetPosition)
     {
         // If we're not in PlayerTurnState, ignore move
-        if (GameStateManager.Instance != null && !GameStateManager.Instance.IsInState<PlayerTurnState>())
+        if (GameStateManager.Instance != null && !GameStateManager.Instance.IsInState<WaitingForInputState>())
         {
             return;
         }
@@ -510,7 +545,7 @@ public class BoardManager : MonoBehaviour
             Vector2Int startPos = selectedTilePosition;
             
             // Clear selection before moving
-            ClearSelection();
+            ClearAllSelectionState();
             
             // Use the stored references to move the tile
             MoveTile(tileToMove, startPos, targetPosition);
@@ -519,7 +554,7 @@ public class BoardManager : MonoBehaviour
             if (GameStateManager.Instance != null)
             {
                 // Use transition with delay to let animation complete
-                GameStateManager.Instance.SetStateWithDelay(new PostTurnState(), 0.5f);
+                GameStateManager.Instance.SetStateWithDelay(new SpawningNewTileState(), 0.5f);
             }
             else
             {
@@ -707,7 +742,7 @@ public class BoardManager : MonoBehaviour
     public void PerformMergeOperation(Tile sourceTile, Tile targetTile, Vector2Int sourcePos, Vector2Int targetPos)
     {
         ClearSelection();
-        PlayerTurnState.ClearAllSelectionState();
+        ClearAllSelectionState();
 
         StartCoroutine(MoveTileToTargetForMerge(sourceTile, targetTile, () =>
         {
@@ -720,7 +755,7 @@ public class BoardManager : MonoBehaviour
                 animator?.PlayMergeAnimation();
 
                 ClearSelection();
-                PlayerTurnState.ClearAllSelectionState();
+                ClearAllSelectionState();
             }
             else
             {
@@ -759,6 +794,14 @@ public class BoardManager : MonoBehaviour
                 specialTile.Initialize(GetRandomTileColor(), abilityName);
                 MarkCellAsOccupied(position);
             }
+        }
+    }
+
+    public void PerformSplitOperation(Tile tile, Vector2Int position)
+    {
+        if (tile != null && IsWithinBounds(position))
+        {
+            TileSplitter.SplitTile(tile, position);
         }
     }
 }

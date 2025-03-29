@@ -342,6 +342,11 @@ A full implementation of Tilebreakers will include multiple Unity scenes and a w
 - Loads level data and handles all in-game logic
 - Includes gameplay UI (score, pause, game over overlay)
 
+#### `Pause`
+- Overlay scene that freezes gameplay
+- Options to resume, restart, adjust settings, or quit to main menu
+- Accessible during active gameplay with pause button
+
 #### `LevelSelect` *(optional/future)*
 - List of unlocked or available challenge levels
 - Preview objectives and difficulty
@@ -364,15 +369,15 @@ Use this structure for `GameState.cs`:
 ```csharp
 public enum GameState
 {
-    Boot,               // App initialization
-    MainMenu,           // Main menu screen
-    LoadingLevel,       // Preparing data / assets
-    InitGame,           // Spawning board and tiles
-    WaitingForInput,    // Awaiting player swipe/tap
-    MovingTiles,        // Tiles animating their movement
-    MergingTiles,       // Handling merges
-    SplittingTiles,     // Handling tile splits
-    SpawningNewTile,    // Dropping a random new tile
+    Boot,               // App initialization - OK
+    MainMenu,           // Main menu screen - OK
+    LoadingLevel,       // Preparing data / assets - OK
+    InitGame,           // Spawning board and tiles - OK
+    WaitingForInput,    // Awaiting player swipe/tap - OK
+    MovingTiles,        // Tiles animating their movement - OK
+    MergingTiles,       // Handling merges - OK
+    SplittingTiles,     // Handling tile splits - OK
+    SpawningNewTile,    // Dropping a random new tile - OK
     SpecialTileAction,  // Waiting for special tile use
     CheckingGameOver,   // Verifying end condition
     GameOver,           // Showing result
@@ -385,10 +390,14 @@ public enum GameState
 ### 🔁 Game Flow Overview
 
 ```
+```
 MainMenu → LoadingLevel → InitGame → WaitingForInput
 → MovingTiles → MergingTiles → SplittingTiles
 → SpawningNewTile → CheckingGameOver
 → GameOver or back to WaitingForInput
+
+At any point during gameplay:
+WaitingForInput → Paused → WaitingForInput
 ```
 
 ---

@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 
 /// <summary>
 /// Abstract base class for all game states
@@ -13,238 +14,6 @@ public abstract class GameState
 }
 
 /// <summary>
-/// Initial game setup with no player interaction yet
-/// </summary>
-public class InitState : GameState
-{
-    public override void Enter()
-    {
-        Debug.Log("InitState: Entering InitState...");
-        // Initialize the game board
-        BoardManager.Instance.GenerateRandomStartingTiles();
-    }
-
-    public override void Update()
-    {
-        // No update logic needed, immediately transition to player turn
-        GameStateManager.Instance.SetState(new PlayerTurnState());
-    }
-
-    public override void Exit()
-    {
-        Debug.Log("InitState: Exiting InitState...");
-        // No additional logic needed
-    }
-}
-
-/// <summary>
-/// Player's turn state - handles tile selection and movement
-/// </summary>
-public class PlayerTurnState : GameState
-{
-    // Using static variables to ensure selection state persists across state transitions
-    // BUT is properly shared between PlayerTurnState instances
-    private static Tile selectedTile;
-    private static Vector2Int selectedPosition;
-    private bool hasMoved = false;
-
-    public override void Enter()
-    {
-        Debug.Log("PlayerTurnState: Entering PlayerTurnState...");
-        // Always reset selection state on enter - crucial for merge cleanup
-        ClearAllSelectionState();
-        hasMoved = false;
-    }
-
-    public override void Update()
-    {
-        // State logic handled through HandleInput
-    }
-
-    public override void HandleInput(Vector2Int gridPosition)
-    {
-        if (hasMoved) return;
-        
-        Tile clickedTile = BoardManager.Instance.GetTileAtPosition(gridPosition);
-        
-        // First selection - selecting a tile
-        if (selectedTile == null)
-        {
-            if (clickedTile != null)
-            {
-                selectedTile = clickedTile;
-                selectedPosition = gridPosition;
-                BoardManager.Instance.HighlightValidMoves(gridPosition, clickedTile.number);
-            }
-        }
-        // Second selection - moving the selected tile or unselecting
-        else
-        {
-            // If clicking on the same tile that's already selected, unselect it
-            if (clickedTile == selectedTile)
-            {
-                BoardManager.Instance.ClearHighlights();
-                selectedTile = null;
-                selectedPosition = Vector2Int.zero;
-                return;
-            }
-            
-            // If clicking on another tile with matching color, try to merge
-            if (clickedTile != null && clickedTile != selectedTile)
-            {
-                if (BoardManager.Instance.IsAdjacent(selectedPosition, gridPosition) &&
-                    BoardManager.Instance.CompareColors(selectedTile.tileColor, clickedTile.tileColor))
-                {
-                    // Store a temporary reference to the selected tile and position
-                    Tile tempTile = selectedTile;
-                    Vector2Int tempPos = selectedPosition;
-                    
-                    // CRITICAL: Clear ALL selection state BEFORE initiating merge
-                    ClearAllSelectionState();
-                    hasMoved = true;
-                    
-                    // Perform merge operation using the stored references
-                    BoardManager.Instance.PerformMergeOperation(tempTile, clickedTile, tempPos, gridPosition);
-                    
-                    // Double-check that the selection state is still cleared after initiating merge
-                    ClearAllSelectionState();
-                    
-                    // Transition to post-turn state after a delay
-                    GameStateManager.Instance.SetStateWithDelay(new PostTurnState(), 0.5f);
-                    return; // Critical - exit immediately
-                }
-                else
-                {
-                    // Selecting a different tile - clear existing highlight and select the new one
-                    BoardManager.Instance.ClearHighlights();
-                    selectedTile = clickedTile;
-                    selectedPosition = gridPosition;
-                    BoardManager.Instance.HighlightValidMoves(gridPosition, clickedTile.number);
-                }
-            }
-            // If clicking on an empty, valid cell, move the tile
-            else if (clickedTile == null && 
-                     BoardManager.Instance.IsValidMove(selectedPosition, gridPosition, selectedTile.number))
-            {
-                // Store references before clearing state
-                Tile tempTile = selectedTile;
-                Vector2Int tempPos = selectedPosition;
-                
-                // Clear selection state completely
-                selectedTile = null;
-                selectedPosition = Vector2Int.zero;
-                hasMoved = true;
-                BoardManager.Instance.ClearHighlights();
-                
-                // Move the tile using stored references
-                BoardManager.Instance.MoveTile(tempTile, tempPos, gridPosition);
-                
-                // Transition to post-turn state after a delay
-                GameStateManager.Instance.SetStateWithDelay(new PostTurnState(), 0.5f);
-            }
-            // If invalid move, keep the selection or clear it based on the click
-            else if (clickedTile == null)
-            {
-                // If clicking on an empty cell that's not a valid move, clear the selection
-                BoardManager.Instance.ClearHighlights();
-                selectedTile = null;
-                selectedPosition = Vector2Int.zero;
-            }
-        }
-    }
-
-    public override void Exit()
-    {
-        Debug.Log("PlayerTurnState: Exiting PlayerTurnState...");
-        // CRITICAL: Ensure all selection state is cleared when exiting
-        ClearAllSelectionState();
-    }
-    
-    // Add this helper method to explicitly reset selection state
-    public static void ClearAllSelectionState()
-    {
-        selectedTile = null;
-        selectedPosition = Vector2Int.zero;
-        
-        if (BoardManager.Instance != null)
-        {
-            BoardManager.Instance.ClearSelection();
-            BoardManager.Instance.ClearHighlights();
-        }
-    }
-}
-
-/// <summary>
-/// Post-turn state - handles end of turn actions like spawning new tiles
-/// </summary>
-public class PostTurnState : GameState
-{
-    public override void Enter()
-    {
-        Debug.Log("PostTurnState: Entering PostTurnState...");
-        // Make extra sure selection state is cleared
-        PlayerTurnState.ClearAllSelectionState();
-        
-        // Spawn new tiles
-        BoardManager.Instance.GenerateRandomStartingTiles(1, 1);
-        
-        // Check for game over
-        if (!BoardManager.Instance.HasValidMove())
-        {
-            GameStateManager.Instance.SetState(new GameOverState());
-        }
-        else
-        {
-            GameStateManager.Instance.SetState(new PlayerTurnState());
-        }
-    }
-
-    public override void Update()
-    {
-        // No update logic needed, handled in Enter
-    }
-
-    public override void Exit()
-    {
-        Debug.Log("PostTurnState: Exiting PostTurnState...");
-        // No additional logic needed
-    }
-}
-
-/// <summary>
-/// Game over state - the player has no more valid moves
-/// </summary>
-public class GameOverState : GameState
-{
-    public override void Enter()
-    {
-        Debug.Log("GameOverState: Entering GameOverState...");
-        Debug.Log("GameOverState: Game over...");
-        // Show game over UI
-        UIManager.Instance.ShowGameOverScreen(ScoreManager.Instance.GetCurrentScore());
-    }
-
-    public override void Update()
-    {
-        // Wait for player input to restart
-    }
-
-    public override void HandleInput(Vector2Int gridPosition)
-    {
-        // Restart game on any input in this state
-        GameStateManager.Instance.RestartGame();
-    }
-
-    public override void Exit()
-    {
-        Debug.Log("GameOverState: Exiting GameOverState...");
-        Debug.Log("GameOverState: Exiting game over...");
-        // Hide game over UI
-        UIManager.Instance.HideGameOverScreen();
-    }
-}
-
-/// <summary>
 /// Boot state - handles app initialization and splash screen display.
 /// </summary>
 public class BootState : GameState
@@ -252,7 +21,6 @@ public class BootState : GameState
     public override void Enter()
     {
         Debug.Log("BootState: Entering BootState...");
-        Debug.Log("BootState: Initializing application...");
         UIManager.Instance.ShowSplashScreen();
 
         // Schedule transition to MainMenuState
@@ -260,22 +28,12 @@ public class BootState : GameState
         GameStateManager.Instance.SetStateWithDelay(new MainMenuState(), 2.0f);
     }
 
+    public override void Update() { }
+
     public override void Exit()
     {
         Debug.Log("BootState: Exiting BootState...");
         UIManager.Instance.HideSplashScreen();
-
-        // Cancel delayed transition if exiting BootState
-        GameStateManager.Instance.SetStateWithDelay(null, 0); // Clear any delayed transitions
-    }
-
-    public override void Update()
-    {
-        // Prevent delayed transition if the state has already changed
-        if (!GameStateManager.Instance.IsInState<BootState>())
-        {
-            Debug.LogWarning("BootState: Canceling delayed transition to MainMenuState because the state has changed.");
-        }
     }
 }
 
@@ -287,28 +45,342 @@ public class MainMenuState : GameState
     public override void Enter()
     {
         Debug.Log("MainMenuState: Entering MainMenuState...");
-        Debug.Log("MainMenuState: Entering main menu...");
-        // Show the main menu UI
         UIManager.Instance.ShowMainMenu();
     }
 
-    public override void Update()
-    {
-        // No update logic needed for MainMenuState
-    }
+    public override void Update() { }
 
     public override void HandleInput(Vector2Int gridPosition)
     {
-        // Start the game when the player selects "Play"
-        GameStateManager.Instance.SetState(new InitState());
+        GameStateManager.Instance.SetState(new LoadingLevelState());
     }
 
     public override void Exit()
     {
         Debug.Log("MainMenuState: Exiting MainMenuState...");
-        Debug.Log("MainMenuState: Exiting main menu...");
-        // Hide the main menu UI
         UIManager.Instance.HideMainMenu();
+    }
+}
+
+/// <summary>
+/// Loading level state - prepares the game level.
+/// </summary>
+public class LoadingLevelState : GameState
+{
+    public override void Enter()
+    {
+        Debug.Log("LoadingLevelState: Preparing data and assets...");
+        // Simulate loading process (e.g., load assets, initialize data)
+        GameStateManager.Instance.SetStateWithDelay(new InitGameState(), 1.5f); // Delay for demonstration
+    }
+
+    public override void Update() { }
+
+    public override void Exit()
+    {
+        Debug.Log("LoadingLevelState: Data and assets prepared.");
+    }
+}
+
+/// <summary>
+/// Init game state - initializes the game board and spawns starting tiles.
+/// </summary>
+public class InitGameState : GameState
+{
+    public override void Enter()
+    {
+        Debug.Log("InitGameState: Initializing game...");
+
+        // Check if BoardManager is initialized
+        if (BoardManager.Instance == null)
+        {
+            Debug.LogError("InitGameState: BoardManager.Instance is null. Ensure BoardManager is properly initialized.");
+            return;
+        }
+
+        // Check if ScoreManager is initialized
+        if (ScoreManager.Instance == null)
+        {
+            Debug.LogError("InitGameState: ScoreManager.Instance is null. Ensure ScoreManager is properly initialized.");
+            return;
+        }
+
+        // Check if UIManager is initialized
+        if (UIManager.Instance == null)
+        {
+            Debug.LogError("InitGameState: UIManager.Instance is null. Ensure UIManager is properly initialized.");
+            return;
+        }
+
+        // Clear the board and initialize it
+        BoardManager.Instance.ClearBoard();
+        BoardManager.Instance.InitializeBoard();
+
+        // Spawn starting tiles
+        BoardManager.Instance.GenerateRandomStartingTiles(Constants.MIN_START_TILES, Constants.MAX_START_TILES);
+
+        // Reset the score and UI
+        ScoreManager.Instance.ResetScore();
+        UIManager.Instance.ResetTopBar();
+
+        // Transition to the next state
+        GameStateManager.Instance.SetState(new WaitingForInputState());
+    }
+
+    public override void Update() { }
+
+    public override void Exit()
+    {
+        Debug.Log("InitGameState: Game initialized.");
+    }
+}
+
+/// <summary>
+/// Waiting for input state - waits for player input.
+/// </summary>
+public class WaitingForInputState : GameState
+{
+    public override void Enter()
+    {
+        Debug.Log("WaitingForInputState: Waiting for player input...");
+    }
+
+    public override void Update() { }
+
+    public override void HandleInput(Vector2Int gridPosition)
+    {
+        Debug.Log($"WaitingForInputState: Player selected grid position {gridPosition}.");
+
+        // Transition to MovingTilesState after input is handled
+        GameStateManager.Instance.SetState(new MovingTilesState());
+    }
+
+    public override void Exit()
+    {
+        Debug.Log("WaitingForInputState: Exiting state.");
+    }
+}
+
+/// <summary>
+/// Moving tiles state - handles tile movement animations.
+/// </summary>
+public class MovingTilesState : GameState
+{
+    public override void Enter()
+    {
+        Debug.Log("MovingTilesState: Moving tiles...");
+
+        // Trigger tile movement animations
+        BoardManager.Instance.StartCoroutine(AnimateTileMovements(() =>
+        {
+            // Transition to the next state after animations are complete
+            GameStateManager.Instance.SetState(new MergingTilesState());
+        }));
+    }
+
+    public override void Update() { }
+
+    public override void Exit()
+    {
+        Debug.Log("MovingTilesState: Exiting state.");
+    }
+
+    /// <summary>
+    /// Animates all tile movements and invokes a callback when complete.
+    /// </summary>
+    private IEnumerator AnimateTileMovements(System.Action onComplete)
+    {
+        // Simulate tile movement animations (replace with actual logic if needed)
+        yield return new WaitForSeconds(Constants.TILE_MOVE_DURATION);
+
+        // Invoke the callback after animations are complete
+        onComplete?.Invoke();
+    }
+}
+
+/// <summary>
+/// Merging tiles state - handles tile merging logic.
+/// </summary>
+public class MergingTilesState : GameState
+{
+    public override void Enter()
+    {
+        Debug.Log("MergingTilesState: Merging tiles...");
+
+        // Trigger merging logic
+        BoardManager.Instance.StartCoroutine(HandleTileMerges(() =>
+        {
+            // Transition to SplittingTilesState after merges are complete
+            GameStateManager.Instance.SetState(new SplittingTilesState());
+        }));
+    }
+
+    public override void Update() { }
+
+    public override void Exit()
+    {
+        Debug.Log("MergingTilesState: Exiting state.");
+    }
+
+    /// <summary>
+    /// Handles all tile merges and invokes a callback when complete.
+    /// </summary>
+    private IEnumerator HandleTileMerges(System.Action onComplete)
+    {
+        // Simulate merge animations (replace with actual logic if needed)
+        yield return new WaitForSeconds(Constants.TILE_MOVE_DURATION);
+
+        // Invoke the callback after merges are complete
+        onComplete?.Invoke();
+    }
+}
+
+/// <summary>
+/// Splitting tiles state - handles tile splitting logic.
+/// </summary>
+public class SplittingTilesState : GameState
+{
+    public override void Enter()
+    {
+        Debug.Log("SplittingTilesState: Splitting tiles...");
+
+        // Trigger splitting logic
+        BoardManager.Instance.StartCoroutine(HandleTileSplits(() =>
+        {
+            // Transition to SpawningNewTileState after splits are complete
+            GameStateManager.Instance.SetState(new SpawningNewTileState(BoardManager.Instance.lastMergedCellPosition));
+        }));
+    }
+
+    public override void Update() { }
+
+    public override void Exit()
+    {
+        Debug.Log("SplittingTilesState: Exiting state.");
+    }
+
+    /// <summary>
+    /// Handles all tile splits and invokes a callback when complete.
+    /// </summary>
+    private IEnumerator HandleTileSplits(System.Action onComplete)
+    {
+        // Simulate split animations (replace with actual logic if needed)
+        yield return new WaitForSeconds(Constants.TILE_MOVE_DURATION);
+
+        // Example: Use TileSplitter for splitting logic
+        Tile tileToSplit = BoardManager.Instance.GetTileAtPosition(BoardManager.Instance.lastMergedCellPosition.Value);
+        if (tileToSplit != null)
+        {
+            TileSplitter.SplitTile(tileToSplit, BoardManager.Instance.lastMergedCellPosition.Value);
+        }
+
+        // Invoke the callback after splits are complete
+        onComplete?.Invoke();
+    }
+}
+
+/// <summary>
+/// Spawning new tile state - spawns a random new tile on the board.
+/// </summary>
+public class SpawningNewTileState : GameState
+{
+    private Vector2Int? mergedCellPosition;
+
+    public SpawningNewTileState(Vector2Int? mergedCellPosition = null)
+    {
+        this.mergedCellPosition = mergedCellPosition;
+    }
+
+    public override void Enter()
+    {
+        Debug.Log("SpawningNewTileState: Spawning a new tile...");
+
+        // Spawn a random new tile, avoiding adjacent cells of the merged cell if applicable
+        BoardManager.Instance.GenerateRandomStartingTiles(1, 1, mergedCellPosition);
+
+        // Transition to CheckingGameOverState after spawning the tile
+        GameStateManager.Instance.SetState(new CheckingGameOverState());
+    }
+
+    public override void Update() { }
+
+    public override void Exit()
+    {
+        Debug.Log("SpawningNewTileState: Exiting state.");
+    }
+}
+
+/// <summary>
+/// Checking game over state - checks if the game is over.
+/// </summary>
+public class CheckingGameOverState : GameState
+{
+    public override void Enter()
+    {
+        Debug.Log("CheckingGameOverState: Checking game over...");
+        if (!BoardManager.Instance.HasValidMove())
+        {
+            GameStateManager.Instance.SetState(new GameOverState());
+        }
+        else
+        {
+            GameStateManager.Instance.SetState(new WaitingForInputState());
+        }
+    }
+
+    public override void Update() { }
+
+    public override void Exit()
+    {
+        Debug.Log("CheckingGameOverState: Game over check complete.");
+    }
+}
+
+/// <summary>
+/// Game over state - the player has no more valid moves.
+/// </summary>
+public class GameOverState : GameState
+{
+    public override void Enter()
+    {
+        Debug.Log("GameOverState: Game over.");
+        UIManager.Instance.ShowGameOverScreen(ScoreManager.Instance.GetCurrentScore());
+    }
+
+    public override void Update() { }
+
+    public override void HandleInput(Vector2Int gridPosition)
+    {
+        GameStateManager.Instance.RestartGame();
+    }
+
+    public override void Exit()
+    {
+        Debug.Log("GameOverState: Exiting game over.");
+        UIManager.Instance.HideGameOverScreen();
+    }
+}
+
+/// <summary>
+/// Pause state - pauses the game and displays the pause menu.
+/// </summary>
+public class PauseState : GameState
+{
+    public override void Enter()
+    {
+        Debug.Log("PauseState: Entering PauseState. Game is now paused.");
+        Time.timeScale = 0f; // Freeze the game
+    }
+
+    public override void Update()
+    {
+        Debug.Log("PauseState: Game is paused. No updates are processed.");
+    }
+
+    public override void Exit()
+    {
+        Debug.Log("PauseState: Exiting PauseState. Game is resuming.");
+        Time.timeScale = 1f; // Resume the game
     }
 }
 

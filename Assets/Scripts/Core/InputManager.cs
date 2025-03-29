@@ -60,7 +60,7 @@ public class InputManager : MonoBehaviour
         Vector2Int gridPosition = BoardManager.Instance.GetGridPositionFromWorldPosition(worldPosition);
 
         if (BoardManager.Instance.IsWithinBounds(gridPosition) &&
-            GameStateManager.Instance?.IsInState<PlayerTurnState>() == true)
+            GameStateManager.Instance?.IsInState<WaitingForInputState>() == true)
         {
             OnTileSelected?.Invoke(gridPosition);
         }
@@ -72,7 +72,7 @@ public class InputManager : MonoBehaviour
         Vector2Int targetPosition = BoardManager.Instance.GetGridPositionFromWorldPosition(worldPosition);
 
         if (BoardManager.Instance.IsWithinBounds(targetPosition) &&
-            GameStateManager.Instance?.IsInState<PlayerTurnState>() == true)
+            GameStateManager.Instance?.IsInState<WaitingForInputState>() == true)
         {
             OnTileMoveConfirmed?.Invoke(targetPosition);
         }
