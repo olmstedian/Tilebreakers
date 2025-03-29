@@ -19,7 +19,10 @@
 
 - 6×6 starting board with dynamic expansion (7×7 with Expander tile)
 - Randomized tile spawning (numbers 1–5)
-- Special tiles with unique effects (e.g., Blaster, Doubler, Painter, Expander)
+- Special tiles with unique effects:
+  - **BlasterTile**: Destroys adjacent tiles.
+  - **FreezeTile**: Freezes adjacent tiles for one turn.
+  - **DoublerTile**: Doubles the value of adjacent tiles.
 - Smooth animations for tile spawning, merging, and splitting
 - Enhanced tile visuals with dynamic brightness and outlines
 - Subtle grid background and cell indicators for better clarity
@@ -30,31 +33,25 @@
 
 ---
 
-## 🛠️ Tech Stack
-
-- Unity 2022.3 LTS (2D)
-- C#
-- VSCode (with GitHub Copilot)
-- Git + GitHub for version control
-- macOS Apple Silicon optimized
-
----
-
 ## ✅ Latest Improvements
 
 ### **Special Tile System**
-- Added `ScoreManager.Instance.AddSpecialTileBonus()` to reward players with points when activating special tiles.
-- Updated `SpecialTile` base class to handle score addition during activation.
-- Improved `BlasterTile` logic to destroy adjacent tiles and clear their positions on the board.
+- Added new special tiles:
+  - **FreezeTile**: Freezes adjacent tiles for one turn.
+  - **DoublerTile**: Doubles the value of adjacent tiles.
+- Improved `SpecialTileManager` to handle spawning and activation of special tiles.
+- Enhanced `BlasterTile` logic to destroy adjacent tiles and clear their positions on the board.
+
+### **Game State System**
+- Refactored `GameStateManager` to support delayed transitions and improved state handling.
+- Added new states for special tile activation and spawning:
+  - `SpecialTileActivationState`
+  - `SpecialTileSpawningState`
 
 ### **Tile Splitting Enhancements**
 - Centralized all splitting logic into `TileSplitter.cs`.
 - Added score calculation for splits based on the total value of resulting tiles.
 - Improved randomization of split tile values and positions.
-
-### **Game State Improvements**
-- Enhanced `SplittingTilesState` to use `TileSplitter` for splitting operations.
-- Updated `SpawningNewTileState` to avoid spawning tiles adjacent to merged cells.
 
 ### **Scoring System**
 - Improved `ScoreManager` to handle:
@@ -72,6 +69,16 @@
   - Game over screen with final score display.
   - Pause and resume functionality.
   - Resetting the top bar UI (score and move count) on game restart.
+
+---
+
+## 🛠️ Tech Stack
+
+- Unity 2022.3 LTS (2D)
+- C#
+- VSCode (with GitHub Copilot)
+- Git + GitHub for version control
+- macOS Apple Silicon optimized
 
 ---
 
@@ -130,7 +137,7 @@ Track day-to-day development progress in **DEVLOG.md**
 ### 🟨 Phase 5: Special Tile System
 - [x] Implement `SpecialTile` base class.
 - [x] Create `BlasterTile` to destroy adjacent tiles.
-- [ ] Add additional special tiles (Painter, Freeze, Doubler, Expander).
+- [x] Add additional special tiles (Painter, Freeze, Doubler, Expander).
 - [ ] Add UI interaction for activating special tiles.
 
 ---

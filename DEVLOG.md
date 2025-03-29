@@ -2,6 +2,46 @@
 
 ## 📅 Recent Updates
 
+### **[Date: 2025-03-30]**
+#### **Special Tile System**
+- Added new special tiles:
+  - **FreezeTile**: Freezes adjacent tiles for one turn.
+  - **DoublerTile**: Doubles the value of adjacent tiles.
+- Improved `SpecialTileManager` to handle spawning and activation of special tiles.
+- Enhanced `BlasterTile` logic to destroy adjacent tiles and clear their positions on the board.
+
+#### **Game State System**
+- Refactored `GameStateManager` to support delayed transitions and improved state handling.
+- Added new states for special tile activation and spawning:
+  - `SpecialTileActivationState`
+  - `SpecialTileSpawningState`
+
+#### **Tile Splitting Enhancements**
+- Centralized all splitting logic into `TileSplitter.cs`.
+- Added score calculation for splits based on the total value of resulting tiles.
+- Improved randomization of split tile values and positions.
+
+#### **Scoring System**
+- Improved `ScoreManager` to handle:
+  - Merge score: `+1` point for the merge itself and the merged tile's final number.
+  - Split score: Total value of resulting split tiles.
+  - Special tile activation bonus: `+10` points.
+- Ensured score updates are reflected in the UI.
+
+#### **Game Over System**
+- Enhanced `GameOverManager` to detect when the board is full and no valid merges exist.
+- Integrated `GameOverState` to handle game over transitions and display the game over screen.
+
+#### **UI Enhancements**
+- Updated `UIManager` to handle:
+  - Game over screen with final score display.
+  - Pause and resume functionality.
+  - Resetting the top bar UI (score and move count) on game restart.
+
+---
+
+## 📅 Previous Updates
+
 ### **[Date: 2025-03-29]**
 #### **Gameplay Enhancements**
 - Improved tile splitting logic to prioritize non-adjacent cells for better gameplay.
@@ -155,6 +195,7 @@
 - [x] Split tiles when their value exceeds 12.
 - [x] Spawn special tiles during splits.
 - [x] Implement `BlasterTile` to destroy adjacent tiles.
+- [x] Add `FreezeTile` and `DoublerTile` with unique abilities.
 
 ### ✅ Phase 4: Scoring and Game Over
 - [x] Implement `ScoreManager` to track and update the player's score.
