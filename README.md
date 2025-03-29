@@ -40,69 +40,38 @@
 
 ---
 
-## ✅ Completed Development Plan
+## ✅ Latest Improvements
 
-### Core Systems
-- **GameManager**: Controls game flow, turn sequence, and game over conditions.
-- **GameStateManager**: Manages game states (e.g., InitState, PlayerTurnState, PostTurnState, GameOverState).
-- **InputManager**: Handles mouse and touch input for tile selection and movement.
-- **GameOverManager**: Detects game over conditions and transitions to the GameOverState.
+### **Special Tile System**
+- Added `ScoreManager.Instance.AddSpecialTileBonus()` to reward players with points when activating special tiles.
+- Updated `SpecialTile` base class to handle score addition during activation.
+- Improved `BlasterTile` logic to destroy adjacent tiles and clear their positions on the board.
 
-### Board and Tile Management
-- **BoardManager**: Manages the grid, tile placement, and updates.
-- **Tile**: Implements tile behavior, including color, number, and animations.
-- **TileMover**: Handles smooth tile movement.
-- **TileAnimator**: Adds animations for merging and splitting.
-- **TileMerger**: Implements merging and splitting logic.
+### **Tile Splitting Enhancements**
+- Centralized all splitting logic into `TileSplitter.cs`.
+- Added score calculation for splits based on the total value of resulting tiles.
+- Improved randomization of split tile values and positions.
 
-### Special Tiles
-- **SpecialTile Base Class**: Defines common behavior for all special tiles.
-- **BlasterTile**: Destroys adjacent tiles when activated.
-- **SpecialTileUI**: Handles player interaction with special tiles.
+### **Game State Improvements**
+- Enhanced `SplittingTilesState` to use `TileSplitter` for splitting operations.
+- Updated `SpawningNewTileState` to avoid spawning tiles adjacent to merged cells.
 
-### Scoring System
-- **ScoreManager**: Tracks and updates the player's score.
-- **UIManager**: Displays the score and move count in the top bar.
+### **Scoring System**
+- Improved `ScoreManager` to handle:
+  - Merge score: `+1` point for the merge itself and the merged tile's final number.
+  - Split score: Total value of resulting split tiles.
+  - Special tile activation bonus: `+10` points.
+- Ensured score updates are reflected in the UI.
 
-### Visual and UI Enhancements
-- **Dynamic Brightness**: Tiles brighten slightly as their numbers increase.
-- **Text Outlines**: Improved text readability with subtle outlines.
-- **Animations**:
-  - Smooth spawn animation for tiles.
-  - Pulse animation for merges.
-  - Smooth movement animations for tile transitions.
-- **Grid Background**: Uniform light gray background for all cells.
-- **Cell Indicators**: Subtle scaling and layering for better visual clarity.
+### **Game Over System**
+- Enhanced `GameOverManager` to detect when the board is full and no valid merges exist.
+- Integrated `GameOverState` to handle game over transitions and display the game over screen.
 
----
-
-## 🟨 Upcoming Development Plan
-
-### Special Tile System
-- **Implement Additional Special Tiles**:
-  - **PainterTile**: Converts adjacent tiles to its color.
-  - **FreezeTile**: Prevents tile spawn for one turn.
-  - **DoublerTile**: Doubles the value of the next merge.
-  - **ExpanderTile**: Expands the board from 6×6 to 7×7.
-
-### Game Over Handling
-- **Game Over Screen**:
-  - Display final score and high score.
-  - Add restart and main menu buttons.
-
-### Polish and Optimization
-- **Visual Feedback**:
-  - Add effects for merging, splitting, and special tile activation.
-- **Sound Effects**:
-  - Add sounds for tile movement, merging, and splitting.
-- **Performance Optimization**:
-  - Implement object pooling for tiles to reduce instantiation overhead.
-
-### Challenge Modes
-- **Daily Challenges**:
-  - Introduce predefined levels with unique objectives.
-- **Endless Mode**:
-  - Allow players to play indefinitely with increasing difficulty.
+### **UI Enhancements**
+- Updated `UIManager` to handle:
+  - Game over screen with final score display.
+  - Pause and resume functionality.
+  - Resetting the top bar UI (score and move count) on game restart.
 
 ---
 

@@ -278,16 +278,55 @@ public class BoardManager : MonoBehaviour
             availableCells.RemoveAll(pos => pos == mergedCell || adjacentPositions.Contains(pos));
         }
 
-        for (int i = 0; i < tileCount && i < availableCells.Count; i++)
+        // Shuffle the available cells to ensure randomness
+        ShuffleList(availableCells);
+
+        // Ensure there are enough available cells
+        if (availableCells.Count < tileCount)
+        {
+            tileCount = availableCells.Count;
+        }
+
+        for (int i = 0; i < tileCount; i++)
         {
             Vector2Int spawnPosition = availableCells[i];
             int randomNumber = Random.Range(Constants.MIN_TILE_NUMBER, Constants.MAX_TILE_NUMBER + 1);
             Color randomColor = tileColorPalette[Random.Range(0, tileColorPalette.Length)];
+
+            // Ensure tilePrefab is assigned
+            if (tilePrefab == null)
+            {
+                Debug.LogError("BoardManager: Tile prefab is not assigned. Cannot spawn tiles.");
+                return;
+            }
+
             GameObject newTile = Instantiate(tilePrefab, GetWorldPosition(spawnPosition), Quaternion.identity, transform);
             Tile tileComponent = newTile.GetComponent<Tile>();
-            tileComponent.Initialize(randomColor, randomNumber);
-            SetTileAtPosition(spawnPosition, tileComponent);
-            MarkCellAsOccupied(spawnPosition);
+
+            if (tileComponent != null)
+            {
+                tileComponent.Initialize(randomColor, randomNumber);
+                SetTileAtPosition(spawnPosition, tileComponent);
+                MarkCellAsOccupied(spawnPosition);
+            }
+            else
+            {
+                Debug.LogError("BoardManager: Spawned tile does not have a Tile component.");
+                Destroy(newTile);
+            }
+        }
+    }
+
+    private void ShuffleList<T>(List<T> list)
+    {
+        int n = list.Count;
+        while (n > 1)
+        {
+            n--;
+            int k = Random.Range(0, n + 1);
+            T value = list[k];
+            list[k] = list[n];
+            list[n] = value;
         }
     }
 

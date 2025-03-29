@@ -1,10 +1,14 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 public class LevelManager : MonoBehaviour
 {
     public static LevelManager Instance { get; private set; }
 
-    public LevelData currentLevel;
+    [SerializeField] private List<LevelData> levels; // List of levels
+    private int currentLevelIndex = 0;
+
+    public LevelData CurrentLevel { get; private set; }
 
     private void Awake()
     {
@@ -14,34 +18,73 @@ public class LevelManager : MonoBehaviour
             Destroy(gameObject);
     }
 
-    public void LoadLevel(LevelData levelData)
+    private void Start()
     {
-        currentLevel = levelData;
-        Debug.Log($"Loaded level: {levelData.name}");
+        if (levels.Count > 0)
+        {
+            LoadLevel(0); // Start with the first level
+        }
+        else
+        {
+            Debug.LogError("LevelManager: No levels configured in the LevelManager.");
+        }
+    }
 
-        // Example usage:
-        // BoardManager.Instance.SetupGrid(currentLevel.gridSizeX, currentLevel.gridSizeY);
-        // BoardManager.Instance.SpawnInitialTiles(currentLevel.startingTileCount);
+    public void LoadLevel(int levelIndex)
+    {
+        if (levelIndex < 0 || levelIndex >= levels.Count)
+        {
+            Debug.LogError($"LevelManager: Invalid level index {levelIndex}. Cannot load level.");
+            return;
+        }
+
+        currentLevelIndex = levelIndex;
+        CurrentLevel = levels[currentLevelIndex];
+        Debug.Log($"LevelManager: Loaded level {CurrentLevel.name}");
+
+        // Apply level-specific configurations
+        BoardManager.Instance.width = CurrentLevel.gridSizeX;
+        BoardManager.Instance.height = CurrentLevel.gridSizeY;
+        BoardManager.Instance.InitializeBoard();
+
+        // Spawn initial tiles
+        BoardManager.Instance.GenerateRandomStartingTiles(CurrentLevel.startingTileCount);
+
+        // Reset score and UI
+        ScoreManager.Instance.ResetScore();
+        UIManager.Instance.ResetTopBar();
     }
 
     public bool IsLevelComplete()
     {
-        // Placeholder logic
-        return ScoreManager.Instance.GetCurrentScore() >= currentLevel.scoreTarget;
+        return ScoreManager.Instance.GetCurrentScore() >= CurrentLevel.scoreTarget;
     }
 
     public void AdvanceToNextLevel()
     {
-        Debug.Log("Level complete! Load next level here...");
-        // Implement logic to move to the next LevelData
+        if (currentLevelIndex + 1 < levels.Count)
+        {
+            Debug.Log("LevelManager: Advancing to the next level...");
+            LoadLevel(currentLevelIndex + 1);
+        }
+        else
+        {
+            Debug.Log("LevelManager: All levels completed!");
+            UIManager.Instance.ShowGameOverScreen(ScoreManager.Instance.GetCurrentScore());
+        }
+    }
+
+    public void RestartCurrentLevel()
+    {
+        Debug.Log("LevelManager: Restarting current level...");
+        LoadLevel(currentLevelIndex);
     }
 
     public void CheckLevelCompletion()
     {
-        int currentScore = ScoreManager.Instance.GetCurrentScore(); // Use GetCurrentScore() instead of CurrentScore
-        if (currentScore >= currentLevel.scoreTarget)
+        if (IsLevelComplete())
         {
-            Debug.Log("Level Complete!");
+            Debug.Log("LevelManager: Level complete!");
             AdvanceToNextLevel();
         }
     }

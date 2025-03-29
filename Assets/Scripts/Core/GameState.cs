@@ -295,7 +295,7 @@ public class SpawningNewTileState : GameState
     {
         Debug.Log("SpawningNewTileState: Spawning a new tile...");
 
-        // Spawn a random new tile, avoiding adjacent cells of the merged cell if applicable
+        // Spawn a random new tile in a random location, avoiding adjacent cells of the merged cell if applicable
         BoardManager.Instance.GenerateRandomStartingTiles(1, 1, mergedCellPosition);
 
         // Transition to CheckingGameOverState after spawning the tile
@@ -321,6 +321,11 @@ public class CheckingGameOverState : GameState
         if (!BoardManager.Instance.HasValidMove())
         {
             GameStateManager.Instance.SetState(new GameOverState());
+        }
+        else if (LevelManager.Instance != null && LevelManager.Instance.IsLevelComplete())
+        {
+            Debug.Log("CheckingGameOverState: Level complete!");
+            LevelManager.Instance.AdvanceToNextLevel();
         }
         else
         {
@@ -351,7 +356,14 @@ public class GameOverState : GameState
 
     public override void HandleInput(Vector2Int gridPosition)
     {
-        GameStateManager.Instance.RestartGame();
+        if (LevelManager.Instance != null)
+        {
+            LevelManager.Instance.RestartCurrentLevel();
+        }
+        else
+        {
+            GameStateManager.Instance.RestartGame();
+        }
     }
 
     public override void Exit()

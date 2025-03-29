@@ -18,6 +18,7 @@ public class UIManager : MonoBehaviour
     [SerializeField] private GameObject pausePanel;
     [SerializeField] private UnityEngine.UI.Button pauseButton;
     [SerializeField] private UnityEngine.UI.Button resumeButton;
+    [SerializeField] private TMPro.TextMeshProUGUI levelText; // Add a reference for the level display
 
     private int moveCount;
 
@@ -69,6 +70,9 @@ public class UIManager : MonoBehaviour
         // Initialize move count
         moveCount = 0;
         UpdateMoveText();
+
+        // Update the level text at the start
+        UpdateLevelText();
     }
 
     public void ShowGameOverScreen(int finalScore)
@@ -187,6 +191,7 @@ public class UIManager : MonoBehaviour
         moveCount = 0;
         UpdateMoveText();
         UpdateScore(0);
+        UpdateLevelText(); // Ensure the level text is updated when resetting the top bar
     }
 
     // Show the pause panel and transition to PauseState
@@ -207,5 +212,21 @@ public class UIManager : MonoBehaviour
             pausePanel.SetActive(false);
         }
         GameStateManager.Instance.SetState(new WaitingForInputState());
+    }
+
+    public void UpdateLevelText()
+    {
+        if (levelText != null && LevelManager.Instance != null)
+        {
+            LevelData currentLevel = LevelManager.Instance.CurrentLevel;
+            if (currentLevel != null)
+            {
+                levelText.text = $"Level: {LevelManager.Instance.CurrentLevel.name}";
+            }
+            else
+            {
+                levelText.text = "Level: 1"; // Default to Level 1 if no level is loaded
+            }
+        }
     }
 }

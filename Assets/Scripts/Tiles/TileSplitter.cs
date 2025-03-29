@@ -125,6 +125,13 @@ public class TileSplitter : MonoBehaviour
 
     private static void CreateTileAtPosition(GameObject tilePrefab, Vector2Int position, int value, Color color)
     {
+        // Ensure tilePrefab is assigned
+        if (tilePrefab == null)
+        {
+            Debug.LogError("TileSplitter: Tile prefab is not assigned. Cannot create tiles.");
+            return;
+        }
+
         // Get world position for spawning the tile
         Vector2 worldPos = BoardManager.Instance.GetWorldPosition(position);
 
@@ -135,6 +142,11 @@ public class TileSplitter : MonoBehaviour
         {
             newTile.Initialize(color, value);
             BoardManager.Instance.RegisterSplitTile(position, newTile);
+        }
+        else
+        {
+            Debug.LogError("TileSplitter: Spawned tile does not have a Tile component.");
+            Destroy(newTileObj);
         }
     }
 

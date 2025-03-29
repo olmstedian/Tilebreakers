@@ -2,6 +2,42 @@
 
 ## 📅 Recent Updates
 
+### **[Date: 2025-03-29]**
+#### **Special Tile System**
+- Added `ScoreManager.Instance.AddSpecialTileBonus()` to reward players with points when activating special tiles.
+- Updated `SpecialTile` base class to handle score addition during activation.
+- Improved `BlasterTile` logic to destroy adjacent tiles and clear their positions on the board.
+
+#### **Tile Splitting Enhancements**
+- Centralized all splitting logic into `TileSplitter.cs`.
+- Added score calculation for splits based on the total value of resulting tiles.
+- Improved randomization of split tile values and positions.
+
+#### **Game State Improvements**
+- Enhanced `SplittingTilesState` to use `TileSplitter` for splitting operations.
+- Updated `SpawningNewTileState` to avoid spawning tiles adjacent to merged cells.
+
+#### **Scoring System**
+- Improved `ScoreManager` to handle:
+  - Merge score: `+1` point for the merge itself and the merged tile's final number.
+  - Split score: Total value of resulting split tiles.
+  - Special tile activation bonus: `+10` points.
+- Ensured score updates are reflected in the UI.
+
+#### **Game Over System**
+- Enhanced `GameOverManager` to detect when the board is full and no valid merges exist.
+- Integrated `GameOverState` to handle game over transitions and display the game over screen.
+
+#### **UI Enhancements**
+- Updated `UIManager` to handle:
+  - Game over screen with final score display.
+  - Pause and resume functionality.
+  - Resetting the top bar UI (score and move count) on game restart.
+
+---
+
+## 📅 Previous Updates
+
 ### **[Date: 2025-03-28]**
 #### **Game Over System**
 - Added `GameOverManager` to detect when the board is full and no valid moves remain.

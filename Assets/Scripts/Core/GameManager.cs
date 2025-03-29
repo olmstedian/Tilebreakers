@@ -24,6 +24,14 @@ public class GameManager : MonoBehaviour
     private void Start()
     {
         Debug.Log("GameManager: Starting game...");
+
+        // Ensure tilePrefab is assigned
+        if (BoardManager.Instance.tilePrefab == null)
+        {
+            Debug.LogError("GameManager: Tile prefab is not assigned in BoardManager. Cannot start the game.");
+            return;
+        }
+
         GameStateManager.Instance?.SetState(new BootState());
 
         // Initialize SpecialTileUI
@@ -32,12 +40,31 @@ public class GameManager : MonoBehaviour
             Instantiate(specialTileUIPrefab);
         }
 
-        // Remove any unnecessary instantiation of BlasterTilePrefab
-        // The BlasterTilePrefab should only be instantiated dynamically when needed
+        // Load the first level using LevelManager
+        if (LevelManager.Instance != null)
+        {
+            LevelManager.Instance.LoadLevel(0); // Start with the first level
+        }
     }
 
     public void EndTurn()
     {
         GameStateManager.Instance?.SetState(new SpawningNewTileState());
+    }
+
+    public void LoadNextLevel()
+    {
+        if (LevelManager.Instance != null)
+        {
+            LevelManager.Instance.AdvanceToNextLevel();
+        }
+    }
+
+    public void RestartCurrentLevel()
+    {
+        if (LevelManager.Instance != null)
+        {
+            LevelManager.Instance.RestartCurrentLevel();
+        }
     }
 }
