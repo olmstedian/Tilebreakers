@@ -195,7 +195,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d74085a022f7b4ed89fde84961db3297, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  specialAbilityName: 
+  specialAbilityName: Doubler
 --- !u!1 &6106463710966528330
 GameObject:
   m_ObjectHideFlags: 0

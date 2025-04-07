@@ -20,10 +20,11 @@
 - **Tile Merging and Splitting**:
   - Merge tiles of the same color to increase their value.
   - Split tiles with high values into smaller tiles with random values.
+  - Click a selected tile again to deselect it.
 
 - **Special Tiles**:
-  - **BlasterTile**: Destroys adjacent tiles.
-  - **FreezeTile**: Skips the next tile spawn.
+  - **BlasterTile**: Destroys adjacent tiles with explosion effects and sounds.
+  - **FreezeTile**: Skips the next tile spawn with satisfying visual feedback.
   - **DoublerTile**: Doubles the value of adjacent tiles.
   - **PainterTile**: Converts adjacent tiles to its own color.
 
@@ -33,53 +34,50 @@
 
 - **Game States**:
   - Robust state management for handling game flow, including input, animations, and transitions.
+  - Improved state transitions with delayed execution and proper cleanup.
 
 - **UI Enhancements**:
   - Dynamic score, move count, and level display.
   - Pause and resume functionality.
   - Game over screen with final score display.
 
-- **Debugging and Logging**:
-  - Improved logging for debugging tile interactions and special tile activations.
+- **Audiovisual Feedback**:
+  - Sound effects for special tile activations.
+  - Particle effects for tile destruction and merging.
+  - Visual indicators for valid moves and selection.
+  - Explosion sounds with pitch variations for BlasterTile.
 
 ---
 
 ## ✅ Latest Improvements
 
-### **Special Tile System**
-- Added new special tiles:
-  - **FreezeTile**: Freezes adjacent tiles for one turn.
-  - **DoublerTile**: Doubles the value of adjacent tiles.
-- Improved `SpecialTileManager` to handle spawning and activation of special tiles.
-- Enhanced `BlasterTile` logic to destroy adjacent tiles and clear their positions on the board.
+### **Special Tile Enhancements**
+- **BlasterTile Improvements**:
+  - Added explosion sound effects with pitch variation for more dynamic feedback.
+  - Increased visual presence with larger scale and pulsing effects.
+  - Individual "crack" sounds for each destroyed tile.
+  - Particle effects for explosions at varying scales.
+  - Visual feedback via color pulsing and scaling animations.
+  
+- **FreezeTile Enhancements**:
+  - Added particle effect support for tile activation.
+  - Clearer logging and feedback when ability is triggered.
+  - Proper cleanup when the tile is used.
 
-### **Game State System**
-- Refactored `GameStateManager` to support delayed transitions and improved state handling.
-- Added new states for special tile activation and spawning:
-  - `SpecialTileActivationState`
-  - `SpecialTileSpawningState`
+### **Tile Interaction Improvements**
+- Clicking a selected tile again now deselects it.
+- Improved visual feedback for tile selection and valid moves.
+- Smoother animations for tile movements and merges.
 
-### **Tile Splitting Enhancements**
-- Centralized all splitting logic into `TileSplitter.cs`.
-- Added score calculation for splits based on the total value of resulting tiles.
-- Improved randomization of split tile values and positions.
+### **Special Tile Spawning System**
+- Improved `FindAlternativePosition` algorithm to find valid positions more reliably.
+- Reduced redundant warnings when spawning special tiles.
+- Added queue-based priority system for nearby positions.
 
-### **Scoring System**
-- Improved `ScoreManager` to handle:
-  - Merge score: `+1` point for the merge itself and the merged tile's final number.
-  - Split score: Total value of resulting split tiles.
-  - Special tile activation bonus: `+10` points.
-- Ensured score updates are reflected in the UI.
-
-### **Game Over System**
-- Enhanced `GameOverManager` to detect when the board is full and no valid merges exist.
-- Integrated `GameOverState` to handle game over transitions and display the game over screen.
-
-### **UI Enhancements**
-- Updated `UIManager` to handle:
-  - Game over screen with final score display.
-  - Pause and resume functionality.
-  - Resetting the top bar UI (score and move count) on game restart.
+### **Game Flow Improvements**
+- Fixed issues with game state transitions.
+- Ensured proper cleanup of resources when tiles are destroyed.
+- Improved board reset logic for game restarts.
 
 ---
 
@@ -145,26 +143,27 @@ Track day-to-day development progress in **DEVLOG.md**
 
 ---
 
-### 🟨 Phase 5: Special Tile System
+### ✅ Phase 5: Special Tile System
 - [x] Implement `SpecialTile` base class.
-- [x] Create `BlasterTile` to destroy adjacent tiles.
-- [x] Add additional special tiles (Painter, Freeze, Doubler, Expander).
-- [ ] Add UI interaction for activating special tiles.
+- [x] Create `BlasterTile` to destroy adjacent tiles with visual and audio feedback.
+- [x] Add additional special tiles (Painter, Freeze, Doubler).
+- [x] Add UI interaction for activating special tiles.
 
 ---
 
-### 🟨 Phase 6: Tile Spawning, Game Flow, and Game Over
+### ✅ Phase 6: Tile Spawning, Game Flow, and Game Over
 - [x] Spawn one random tile after each player move.
-- [ ] Skip spawn if `FreezeTile` is active.
-- [ ] Detect game over when the board is full and no valid moves are possible.
-- [ ] Display game over screen with score and restart options.
+- [x] Skip spawn if `FreezeTile` is active.
+- [x] Detect game over when the board is full and no valid moves are possible.
+- [x] Display game over screen with score and restart options.
 
 ---
 
 ### 🟨 Phase 7: Polish and UI
-- [ ] Add visual feedback for merging, splitting, and special abilities.
-- [ ] Add sound effects for tile interactions.
-- [ ] Add score UI and game over screen.
+- [x] Add visual feedback for merging, splitting, and special abilities.
+- [x] Add sound effects for tile interactions.
+- [x] Add score UI and game over screen.
+- [ ] Add tutorial elements for new players.
 
 ---
 

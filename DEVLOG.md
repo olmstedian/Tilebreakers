@@ -246,45 +246,61 @@ This development log provides a clear overview of recent updates, upcoming tasks
 
 # Development Log
 
-## Latest Updates
+## Latest Updates (June 2023)
 
-### Special Tiles
-- **BlasterTile**: Added functionality to destroy adjacent tiles (orthogonal and diagonal).
-- **FreezeTile**: Skips the next tile spawn and includes optional visual effects.
-- **DoublerTile**: Doubles the value of adjacent tiles.
-- **PainterTile**: Converts adjacent tiles to its own color.
+### BlasterTile Audio-Visual Enhancements
+- **Added Audio Effects**:
+  - Implemented main explosion sound with randomized pitch.
+  - Added "crack" sounds for each destroyed adjacent tile.
+  - Set up audio source components and volume controls.
+- **Visual Improvements**:
+  - Increased BlasterTile size by 15% for better visibility.
+  - Added pulsing animation between original and highlight colors.
+  - Adjusted text scale to fit the larger tile.
+  - Enhanced explosion effects with particle systems.
+- **Usability**:
+  - Ensured proper cleanup of resources when BlasterTile is destroyed.
+  - Added clear debug logs for tracking special tile activations.
 
-### Game States
-- Enhanced state management with new states:
-  - `SpecialTileActionState`: Handles activation of special tiles.
-  - `SpecialTileSpawningState`: Manages spawning of special tiles.
-  - `CheckingGameOverState`: Verifies game-over conditions.
-- Improved transitions between states with delayed execution support.
+### Tile Selection Improvements
+- Added deselection functionality when clicking an already selected tile.
+- Improved visual feedback for selections with clearer highlight colors.
+- Adjusted selection state handling to prevent edge cases with stale selections.
 
-### UI Improvements
-- Added dynamic level display in the top bar.
-- Updated move count and score display logic.
-- Enhanced game over screen with final score display.
+### Special Tile Spawning System
+- Optimized `FindAlternativePosition` algorithm to find valid positions more reliably:
+  - Added HashSet to track checked positions and avoid duplication.
+  - Implemented queue-based system to prioritize nearby positions.
+  - Improved fallback mechanism to use any empty cell when needed.
+- Reduced redundant warnings in console logs when spawning special tiles.
+- Made special tile trigger chance configurable via Constants.cs.
 
-### Tile Interactions
-- Clicking a selected tile again now deselects it.
-- Improved merging logic to handle distance-based criteria.
-- Added animations for tile spawning, merging, and movement.
+### FreezeTile Improvements
+- Fixed issue with SkipNextTileSpawn functionality.
+- Added particle effect support for tile activation.
+- Ensured proper cleanup and board state updates when FreezeTile is used.
 
-### Debugging and Logging
-- Added detailed logs for tile interactions, special tile activations, and game state transitions.
-- Improved error handling for missing components or invalid configurations.
+### Game Board Management
+- Improved tile deletion logic to properly update board state.
+- Added logging for board status to help with debugging.
+- Added null checks to prevent NullReferenceExceptions in board operations.
 
-### Level Management
-- Introduced `LevelManager` to handle level progression and configurations.
-- Added `LevelData` scriptable objects for defining level-specific settings.
+### UI Enhancements
+- Updated top bar with level information.
+- Improved transition between game states with smoother animations.
+- Added feedback for special tile activation.
 
 ### Miscellaneous
-- Increased `SPECIAL_TILE_CHANCE` to 50% for testing purposes.
-- Refactored `BoardManager` to improve alternative position handling for special tile spawning.
+- Fixed several bugs in tile merging and splitting logic.
+- Improved error handling for edge cases in game state transitions.
+- Added additional documentation comments to clarify code functionality.
+- Fixed issues with overlapping colliders during tile movement.
 
 ## Next Steps
-- Add more special tile types with unique abilities.
-- Implement timed levels and move-limited challenges.
-- Optimize performance for larger grid sizes.
+- Implement more sound effects for regular tile interactions.
+- Add visual effects for tile merging.
+- Create a coherent visual theme for the game.
+- Improve special tile spawning rate balance.
+- Add a tutorial system.
+- Create level progression with increasing difficulty.
 
