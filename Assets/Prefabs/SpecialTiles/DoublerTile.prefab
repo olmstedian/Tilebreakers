@@ -11,9 +11,9 @@ GameObject:
   - component: {fileID: 6598506351535366118}
   - component: {fileID: -6230321109894492896}
   - component: {fileID: -1484487956052575311}
-  - component: {fileID: 3856149397107314010}
+  - component: {fileID: -6489264116497203521}
   m_Layer: 0
-  m_Name: BlasterTile
+  m_Name: DoublerTile
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -55,7 +55,7 @@ SpriteRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 9dfc825aed78fcd4ba02077103263b40, type: 2}
+  - {fileID: 2100000, guid: a97c105638bdf8b4a8650670310a4cd3, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -76,8 +76,8 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: 21300000, guid: 09716a00099524f7db1a52f0c3abd555, type: 3}
-  m_Color: {r: 0.8413968, g: 0, b: 1, a: 1}
+  m_Sprite: {fileID: 21300000, guid: fc3f46aff56a549f69b6d0dfa3945ac7, type: 3}
+  m_Color: {r: 0.763596, g: 0, b: 0.9056604, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -183,7 +183,7 @@ AudioSource:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
---- !u!114 &3856149397107314010
+--- !u!114 &-6489264116497203521
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -192,10 +192,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 2294095823878119490}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8aa6410099a104f8186e3f5080699555, type: 3}
+  m_Script: {fileID: 11500000, guid: d74085a022f7b4ed89fde84961db3297, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  specialAbilityName: Blaster
+  specialAbilityName: 
 --- !u!1 &6106463710966528330
 GameObject:
   m_ObjectHideFlags: 0

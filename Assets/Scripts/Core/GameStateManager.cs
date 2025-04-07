@@ -31,11 +31,18 @@ public class GameStateManager : MonoBehaviour
 
     public void SetState(GameState newState)
     {
-        Debug.Log($"GameStateManager: Transitioning from {currentState?.GetType().Name ?? "None"} to {newState.GetType().Name}");
+        if (currentState?.GetType() == newState.GetType())
+        {
+            Debug.LogWarning($"GameStateManager: Attempted to transition to the same state: {newState.GetType().Name}. Ignoring.");
+            return;
+        }
+
         currentState?.Exit();
         currentState = newState;
         currentState?.Enter();
         OnStateChanged?.Invoke(currentState);
+
+        Debug.Log($"GameStateManager: Transitioned to {newState.GetType().Name}.");
     }
 
     public void CancelDelayedTransition()
@@ -50,29 +57,16 @@ public class GameStateManager : MonoBehaviour
 
     public void SetStateWithDelay(GameState newState, float delay)
     {
-        // If newState is null, log and return immediately
-        if (newState == null)
-        {
-            Debug.LogWarning("GameStateManager: Attempted to schedule a delayed transition to 'None'. Ignoring.");
-            return;
-        }
-
-        // Prevent scheduling a delayed transition to the same state
         if (currentState?.GetType() == newState.GetType())
         {
-            Debug.LogWarning($"GameStateManager: Skipping delayed transition to {newState.GetType().Name} because it matches the current state.");
             return;
         }
 
-        // Cancel any existing delayed transition
         if (delayedTransition != null)
         {
-            Debug.Log($"GameStateManager: Canceling existing delayed transition to {newState.GetType().Name}.");
             StopCoroutine(delayedTransition);
-            delayedTransition = null;
         }
 
-        Debug.Log($"GameStateManager: Delaying transition to {newState.GetType().Name} by {delay} seconds.");
         delayedTransition = StartCoroutine(SetStateDelayed(newState, delay));
     }
 
@@ -174,6 +168,12 @@ public class GameStateManager : MonoBehaviour
 
     public void SpawnSpecialTile(Vector2Int position, string abilityName)
     {
+        if (!BoardManager.Instance.IsWithinBounds(position))
+        {
+            Debug.LogWarning($"GameStateManager: Cannot spawn special tile at {position}. Position is out of bounds.");
+            return;
+        }
+
         Debug.Log($"GameStateManager: Transitioning to SpecialTileSpawningState for '{abilityName}' at {position}.");
         SetState(new SpecialTileSpawningState(position, abilityName));
     }

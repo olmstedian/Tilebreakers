@@ -1,6 +1,6 @@
 # 🧩 Tilebreakers
 
-**Tilebreakers** is a minimalist, single-player, color-and-number merge puzzle game built with **Unity 2D**. Swipe, merge, split, and trigger special abilities to manage the board and rack up the highest score—before it fills up.
+**Tilebreakers** is a grid-based puzzle game where players merge, split, and activate special tiles to achieve high scores and complete levels.
 
 ---
 
@@ -17,19 +17,30 @@
 
 ## 🧱 Features
 
-- 6×6 starting board with dynamic expansion (7×7 with Expander tile)
-- Randomized tile spawning (numbers 1–5)
-- Special tiles with unique effects:
+- **Tile Merging and Splitting**:
+  - Merge tiles of the same color to increase their value.
+  - Split tiles with high values into smaller tiles with random values.
+
+- **Special Tiles**:
   - **BlasterTile**: Destroys adjacent tiles.
-  - **FreezeTile**: Freezes adjacent tiles for one turn.
+  - **FreezeTile**: Skips the next tile spawn.
   - **DoublerTile**: Doubles the value of adjacent tiles.
-- Smooth animations for tile spawning, merging, and splitting
-- Enhanced tile visuals with dynamic brightness and outlines
-- Subtle grid background and cell indicators for better clarity
-- Simple scoring system with combo bonuses
-- Game over detection with a dedicated `GameOverManager`
-- Clean, modern visual style
-- Designed for infinite play and challenge modes
+  - **PainterTile**: Converts adjacent tiles to its own color.
+
+- **Level Progression**:
+  - Levels with unique configurations, including grid size, starting tiles, and score targets.
+  - Automatic level advancement upon meeting score targets.
+
+- **Game States**:
+  - Robust state management for handling game flow, including input, animations, and transitions.
+
+- **UI Enhancements**:
+  - Dynamic score, move count, and level display.
+  - Pause and resume functionality.
+  - Game over screen with final score display.
+
+- **Debugging and Logging**:
+  - Improved logging for debugging tile interactions and special tile activations.
 
 ---
 
@@ -366,7 +377,6 @@ public enum GameState
 ### 🔁 Game Flow Overview
 
 ```
-```
 MainMenu → LoadingLevel → InitGame → WaitingForInput
 → MovingTiles → MergingTiles → SplittingTiles
 → SpawningNewTile → CheckingGameOver
@@ -388,3 +398,22 @@ WaitingForInput → Paused → WaitingForInput
 | `VictoryAnimation`   | Extra feedback after winning |
 
 ---
+
+## Installation
+
+1. Clone the repository.
+2. Open the project in Unity.
+3. Assign required prefabs (e.g., `TilePrefab`, `SpecialTilePrefabs`) in the Unity Editor.
+4. Play the game in the Unity Editor or build it for your desired platform.
+
+---
+
+## Contributing
+
+Contributions are welcome! Please follow the coding standards and submit pull requests for review.
+
+---
+
+## License
+
+This project is licensed under the MIT License.

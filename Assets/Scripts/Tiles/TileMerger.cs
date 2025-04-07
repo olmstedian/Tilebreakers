@@ -4,9 +4,7 @@ using System.Collections.Generic;
 public class TileMerger : MonoBehaviour
 {
     /// <summary>
-    /// Merges movingTile into staticTile if they have matching colors.
-    /// The staticTile's number increases by movingTile's number.
-    /// Splits the tile if it exceeds the threshold after merging.
+    /// Merges movingTile into staticTile if they have matching colors and meet the distance-based merging criteria.
     /// </summary>
     /// <param name="staticTile">The tile that remains in place</param>
     /// <param name="movingTile">The tile being merged (will be destroyed)</param>
@@ -21,29 +19,38 @@ public class TileMerger : MonoBehaviour
 
         if (!ColorMatch(staticTile.tileColor, movingTile.tileColor)) return false;
 
+        // Calculate the Manhattan distance between the tiles
+        Vector2Int staticPos = BoardManager.Instance.GetGridPositionFromWorldPosition(staticTile.transform.position);
+        Vector2Int movingPos = BoardManager.Instance.GetGridPositionFromWorldPosition(movingTile.transform.position);
+        int distance = Mathf.Abs(staticPos.x - movingPos.x) + Mathf.Abs(staticPos.y - movingPos.y);
+
+        // Check if the distance-based merging criteria are met
+        if (distance > movingTile.number)
+        {
+            Debug.LogWarning($"TileMerger: Merge failed. Distance ({distance}) exceeds moving tile's number ({movingTile.number}).");
+            return false;
+        }
+
+        // Perform the merge
         staticTile.number += movingTile.number;
         staticTile.UpdateVisuals();
         Object.Destroy(movingTile.gameObject);
 
         // Track the merged cell
-        Vector2Int mergedPosition = BoardManager.Instance.GetGridPositionFromWorldPosition(staticTile.transform.position);
-        BoardManager.Instance.lastMergedCellPosition = mergedPosition;
+        BoardManager.Instance.lastMergedCellPosition = staticPos;
 
         // Add score for the merge
         ScoreManager.Instance.AddMergeScore(staticTile.number);
 
-        staticTile.ClearSelectionState();
-
         // Trigger special tile spawning after the merge
-        BoardManager.Instance.TriggerSpecialTileSpawn(mergedPosition);
+        Debug.Log($"TileMerger: Checking for special tile spawn at {staticPos}.");
+        BoardManager.Instance.TriggerSpecialTileSpawn(staticPos);
 
         // Delegate splitting logic to TileSplitter
         if (staticTile.number > splitThreshold)
         {
-            TileSplitter.SplitTile(staticTile, mergedPosition);
+            TileSplitter.SplitTile(staticTile, staticPos);
         }
-
-        staticTile.ClearSelectionState();
 
         return true;
     }

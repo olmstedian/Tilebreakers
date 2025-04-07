@@ -16,6 +16,8 @@ public static class Constants
     public const int MIN_TILE_NUMBER = 1;
     public const int MAX_TILE_NUMBER = 5;
 
-    // Special spawn chance (e.g., Expander tile chance, 5% expressed as 0.05f)
-    public const float SPECIAL_TILE_CHANCE = 0.05f;
+    // Special spawn chance (e.g., Expander tile chance, increased to 50% expressed as 0.5f)
+    public const float SPECIAL_TILE_CHANCE = 0.5f; // Temporarily increase for testing
+    // Special spawn chance (e.g., Painter tile chance, increased to 20% expressed as 0.2f)
+    public const float PAINTER_TILE_CHANCE = 0.2f;
 }

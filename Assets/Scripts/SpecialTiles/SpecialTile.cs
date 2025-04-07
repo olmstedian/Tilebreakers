@@ -6,10 +6,11 @@ public abstract class SpecialTile : MonoBehaviour
 
     private void OnMouseDown()
     {
-        // Route special tile activation through GameStateManager
-        if (GameStateManager.Instance != null && GameStateManager.Instance.IsInState<SpecialTileActivationState>())
+        // Ensure activation only occurs in the correct game state
+        if (GameStateManager.Instance != null && GameStateManager.Instance.IsInState<WaitingForInputState>())
         {
-            GameStateManager.Instance.ActivateSpecialTile(BoardManager.Instance.GetGridPositionFromWorldPosition(transform.position));
+            Debug.Log($"SpecialTile: {specialAbilityName} clicked. Activating...");
+            Activate();
         }
     }
 
@@ -18,7 +19,10 @@ public abstract class SpecialTile : MonoBehaviour
         Debug.Log($"SpecialTile: Activating {specialAbilityName} ability.");
         ActivateAbility();
 
-        // Return to game loop flow after activation
+        // Award score bonus for using a special tile
+        ScoreManager.Instance.AddSpecialTileBonus();
+
+        // Transition to the next game state
         GameStateManager.Instance?.SetState(new CheckingGameOverState());
     }
 

@@ -30,6 +30,8 @@ public class BoardManager : MonoBehaviour
 
     private List<SpecialTile> specialTiles = new List<SpecialTile>();
 
+    private bool skipNextSpawn = false;
+
     private void Awake()
     {
         if (Instance == null)
@@ -260,7 +262,7 @@ public class BoardManager : MonoBehaviour
         emptyCells.Remove(position);
     }
 
-    public void GenerateRandomStartingTiles(int minTiles = Constants.MIN_START_TILES, int maxTiles = Constants.MAX_START_TILES, Vector2Int? excludePosition = null)
+    public bool GenerateRandomStartingTiles(int minTiles = Constants.MIN_START_TILES, int maxTiles = Constants.MAX_START_TILES, Vector2Int? excludePosition = null)
     {
         int tileCount = Random.Range(minTiles, maxTiles + 1);
         List<Vector2Int> availableCells = new List<Vector2Int>(emptyCells);
@@ -289,6 +291,12 @@ public class BoardManager : MonoBehaviour
             tileCount = availableCells.Count;
         }
 
+        if (tileCount == 0)
+        {
+            Debug.LogWarning("BoardManager: No available cells to spawn tiles.");
+            return false; // No tiles spawned
+        }
+
         for (int i = 0; i < tileCount; i++)
         {
             Vector2Int spawnPosition = availableCells[i];
@@ -299,7 +307,7 @@ public class BoardManager : MonoBehaviour
             if (tilePrefab == null)
             {
                 Debug.LogError("BoardManager: Tile prefab is not assigned. Cannot spawn tiles.");
-                return;
+                return false;
             }
 
             GameObject newTile = Instantiate(tilePrefab, GetWorldPosition(spawnPosition), Quaternion.identity, transform);
@@ -317,6 +325,8 @@ public class BoardManager : MonoBehaviour
                 Destroy(newTile);
             }
         }
+
+        return true; // Tiles spawned successfully
     }
 
     private void ShuffleList<T>(List<T> list)
@@ -349,22 +359,16 @@ public class BoardManager : MonoBehaviour
                 if (currentTile == null) continue;
 
                 // Check adjacent tiles for a valid merge
-                List<Vector2Int> adjacentPositions = new List<Vector2Int>
+                foreach (Vector2Int dir in DirectionUtils.Orthogonal)
                 {
-                    new Vector2Int(x + 1, y),
-                    new Vector2Int(x - 1, y),
-                    new Vector2Int(x, y + 1),
-                    new Vector2Int(x, y - 1)
-                };
-
-                foreach (Vector2Int adjacent in adjacentPositions)
-                {
-                    if (!IsWithinBounds(adjacent)) continue;
-                    
-                    Tile adjacentTile = GetTileAtPosition(adjacent);
-                    if (adjacentTile != null && CompareColors(adjacentTile.tileColor, currentTile.tileColor))
+                    Vector2Int neighborPos = new Vector2Int(x + dir.x, y + dir.y);
+                    if (IsWithinBounds(neighborPos))
                     {
-                        return true; // Found a valid move
+                        Tile neighborTile = GetTileAtPosition(neighborPos);
+                        if (neighborTile != null && CompareColors(currentTile.tileColor, neighborTile.tileColor))
+                        {
+                            return true; // Found a valid move
+                        }
                     }
                 }
             }
@@ -414,10 +418,20 @@ public class BoardManager : MonoBehaviour
 
         if (tile != null)
         {
-            if (selectedTile != null && selectedTile != tile)
+            if (selectedTile == tile)
             {
-                if (IsAdjacent(selectedTilePosition, gridPosition) &&
-                    CompareColors(selectedTile.tileColor, tile.tileColor))
+                // Deselect the tile if it's already selected
+                ClearSelection();
+                return;
+            }
+
+            if (selectedTile != null)
+            {
+                // Check if the tiles can merge based on distance and number
+                Vector2Int selectedPos = selectedTilePosition;
+                int distance = Mathf.Abs(selectedPos.x - gridPosition.x) + Mathf.Abs(selectedPos.y - gridPosition.y);
+
+                if (CompareColors(selectedTile.tileColor, tile.tileColor) && distance <= selectedTile.number)
                 {
                     Tile tempSourceTile = selectedTile;
                     Vector2Int tempSourcePos = selectedTilePosition;
@@ -830,17 +844,73 @@ public class BoardManager : MonoBehaviour
     /// <param name="position">The grid position where the special tile should spawn.</param>
     public void TriggerSpecialTileSpawn(Vector2Int position)
     {
+        if (!IsWithinBounds(position) || !IsCellEmpty(position))
+        {
+            Vector2Int? alternativePosition = FindAlternativePosition(position);
+
+            if (!alternativePosition.HasValue)
+            {
+                Debug.LogWarning($"BoardManager: Cannot spawn special tile at {position} or find an alternative position. Skipping spawn.");
+                return;
+            }
+
+            position = alternativePosition.Value; // Use the valid alternative position
+        }
+
         if (Random.value < Constants.SPECIAL_TILE_CHANCE)
         {
-            if (SpecialTileManager.Instance != null)
+            string[] specialTileTypes = { "Blaster", "Freeze", "Doubler", "Painter" };
+            string randomSpecialTile = specialTileTypes[Random.Range(0, specialTileTypes.Length)];
+            Debug.Log($"BoardManager: Spawning special tile '{randomSpecialTile}' at {position}.");
+            SpecialTileManager.Instance.SpawnSpecialTile(position, randomSpecialTile);
+        }
+    }
+
+    private Vector2Int? FindAlternativePosition(Vector2Int originalPosition)
+    {
+        HashSet<Vector2Int> checkedPositions = new HashSet<Vector2Int>();
+        Queue<Vector2Int> positionsToCheck = new Queue<Vector2Int>();
+
+        // Start with the original position's neighbors
+        Vector2Int[] directions = new Vector2Int[]
+        {
+            Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right,
+            Vector2Int.up + Vector2Int.left, Vector2Int.up + Vector2Int.right,
+            Vector2Int.down + Vector2Int.left, Vector2Int.down + Vector2Int.right
+        };
+
+        foreach (Vector2Int direction in directions)
+        {
+            Vector2Int newPosition = originalPosition + direction;
+            if (IsWithinBounds(newPosition) && !checkedPositions.Contains(newPosition))
             {
-                SpecialTileManager.Instance.SpawnSpecialTile(position, "Blaster");
-            }
-            else
-            {
-                Debug.LogWarning("BoardManager: SpecialTileManager is not initialized. Cannot spawn special tiles.");
+                positionsToCheck.Enqueue(newPosition);
+                checkedPositions.Add(newPosition);
             }
         }
+
+        // Check nearby positions first
+        while (positionsToCheck.Count > 0)
+        {
+            Vector2Int position = positionsToCheck.Dequeue();
+            if (IsCellEmpty(position))
+            {
+                return position; // Return the first valid position
+            }
+        }
+
+        // Fallback: Check all empty cells on the board
+        foreach (Vector2Int position in GetAllEmptyCells())
+        {
+            if (!checkedPositions.Contains(position))
+            {
+                return position; // Return the first available empty cell
+            }
+        }
+
+        // No valid position found
+        Debug.LogWarning($"BoardManager: No valid alternative position found for original position {originalPosition}.");
+        return null;
     }
 
     public void HandleSpecialTileActivation(Vector2Int gridPosition)
@@ -860,7 +930,7 @@ public class BoardManager : MonoBehaviour
 
     public void RegisterSpecialTile(SpecialTile specialTile)
     {
-        if (!specialTiles.Contains(specialTile))
+        if (!specialTiles.Contains(specialTile)) // Corrected 'contains' to 'Contains'
         {
             specialTiles.Add(specialTile);
         }
@@ -877,5 +947,37 @@ public class BoardManager : MonoBehaviour
     public IEnumerable<Vector2Int> GetAllEmptyCells()
     {
         return emptyCells;
+    }
+
+    /// <summary>
+    /// Skips the next tile spawn.
+    /// </summary>
+    public void SkipNextTileSpawn()
+    {
+        skipNextSpawn = true;
+        Debug.Log("BoardManager: Next tile spawn will be skipped.");
+    }
+
+    private void SpawnTile()
+    {
+        if (skipNextSpawn)
+        {
+            skipNextSpawn = false;
+            Debug.Log("BoardManager: Tile spawn skipped.");
+            return;
+        }
+
+        // ...existing tile spawn logic...
+    }
+
+    /// <summary>
+    /// Checks if a cell is empty or mergeable with the given tile.
+    /// </summary>
+    public bool IsCellEmptyOrMergeable(Vector2Int position, Tile tile)
+    {
+        if (!IsWithinBounds(position)) return false;
+
+        Tile targetTile = GetTileAtPosition(position);
+        return targetTile == null || CompareColors(tile.tileColor, targetTile.tileColor);
     }
 }

@@ -11,9 +11,10 @@ GameObject:
   - component: {fileID: 6598506351535366118}
   - component: {fileID: -6230321109894492896}
   - component: {fileID: -1484487956052575311}
-  - component: {fileID: 3856149397107314010}
+  - component: {fileID: 4084940301036090418}
+  - component: {fileID: -7534689249201424347}
   m_Layer: 0
-  m_Name: BlasterTile
+  m_Name: PainterTile
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -76,8 +77,8 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: 21300000, guid: 09716a00099524f7db1a52f0c3abd555, type: 3}
-  m_Color: {r: 0.8413968, g: 0, b: 1, a: 1}
+  m_Sprite: {fileID: 21300000, guid: 10b6bcb66bbc6441c9cf32393b0c47d4, type: 3}
+  m_Color: {r: 0.84313726, g: 0, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -183,7 +184,7 @@ AudioSource:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
---- !u!114 &3856149397107314010
+--- !u!114 &4084940301036090418
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -192,10 +193,24 @@ MonoBehaviour:
   m_GameObject: {fileID: 2294095823878119490}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8aa6410099a104f8186e3f5080699555, type: 3}
+  m_Script: {fileID: 11500000, guid: 356bbd264f7da4e799ecd5c27fbf9d0f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  specialAbilityName: Blaster
+  specialAbilityName: Painter
+--- !u!114 &-7534689249201424347
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2294095823878119490}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ac9f573c6e3174bc895f8d35791c6300, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  tileColor: {r: 0, g: 0, b: 0, a: 0}
+  number: 0
 --- !u!1 &6106463710966528330
 GameObject:
   m_ObjectHideFlags: 0

@@ -8,6 +8,7 @@ public class GameManager : MonoBehaviour
 
     [SerializeField] private GameObject gameStateManagerPrefab;
     [SerializeField] private GameObject specialTileUIPrefab; // Keep this for UI
+    [SerializeField] private GameObject gameOverManagerPrefab; // Add a reference to the GameOverManager prefab
 
     private void Awake()
     {
@@ -17,6 +18,24 @@ public class GameManager : MonoBehaviour
         if (GameStateManager.Instance == null && gameStateManagerPrefab != null)
         {
             Instantiate(gameStateManagerPrefab);
+        }
+
+        // Ensure GameOverManager is instantiated
+        if (GameOverManager.Instance == null && gameOverManagerPrefab != null)
+        {
+            Instantiate(gameOverManagerPrefab);
+            Debug.Log("GameManager: GameOverManager instantiated successfully.");
+        }
+        else if (GameOverManager.Instance == null)
+        {
+            Debug.LogError("GameManager: GameOverManager prefab is missing. Ensure it is assigned in the inspector.");
+        }
+
+        // Ensure all special tile prefabs are assigned
+        if (SpecialTileManager.Instance != null)
+        {
+            Debug.Log("GameManager: Verifying special tile prefabs...");
+            SpecialTileManager.Instance.InitializePrefabMap();
         }
     }
 

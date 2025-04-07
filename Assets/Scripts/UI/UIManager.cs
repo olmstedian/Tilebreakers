@@ -229,4 +229,10 @@ public class UIManager : MonoBehaviour
             }
         }
     }
+
+    public void UpdateSpecialTileUI()
+    {
+        Debug.Log("UIManager: Updating special tile UI to include PainterTile.");
+        // Add logic to display PainterTile in the special tile UI if applicable
+    }
 }

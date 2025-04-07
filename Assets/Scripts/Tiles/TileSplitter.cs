@@ -12,47 +12,48 @@ public class TileSplitter : MonoBehaviour
     /// <param name="originalPosition">Grid position of the original tile</param>
     public static void SplitTile(Tile tile, Vector2Int originalPosition)
     {
+        Debug.Log($"TileSplitter: Splitting tile at {originalPosition} with value {tile.number}.");
+
         int originalValue = tile.number;
         Color originalColor = tile.tileColor;
 
-        // Determine how many tiles to split into (2-4 tiles)
         int splitCount = Random.Range(2, Mathf.Min(5, originalValue));
-
-        // Find available cells for spawning the split tiles
         List<Vector2Int> availablePositions = FindSplitPositions(originalPosition);
-        if (availablePositions.Count < splitCount)
+
+        splitCount = Mathf.Min(splitCount, availablePositions.Count);
+        if (splitCount < 2)
         {
-            splitCount = Mathf.Max(2, availablePositions.Count);
+            Debug.LogWarning("TileSplitter: Not enough available positions to split the tile.");
+
+            // Trigger game-over check
+            GameOverManager.Instance?.CheckGameOver();
+            return;
         }
 
-        // Generate random values that sum to the original value
         List<int> splitValues = GenerateSplitValues(originalValue, splitCount);
-
-        // Destroy the original tile
         Object.Destroy(tile.gameObject);
 
-        // Create new tiles at the random positions
         for (int i = 0; i < splitCount; i++)
         {
             Vector2Int spawnPos = availablePositions[i];
             int value = splitValues[i];
-
-            // Choose a random color from the predefined palette
             Color randomColor = BoardManager.Instance.GetRandomTileColor();
 
-            // Create new tile
+            Debug.Log($"TileSplitter: Creating tile at {spawnPos} with value {value} and color {randomColor}.");
             CreateTileAtPosition(BoardManager.Instance.tilePrefab, spawnPos, value, randomColor);
         }
 
-        // Ensure one BlasterTile is spawned at a random available position
-        if (availablePositions.Count > 0 && SpecialTileManager.Instance != null)
+        if (Random.value < Constants.SPECIAL_TILE_CHANCE)
         {
-            Vector2Int blasterTilePosition = availablePositions[Random.Range(0, availablePositions.Count)];
-            SpecialTileManager.Instance.SpawnSpecialTile(blasterTilePosition, "Blaster");
+            Debug.Log($"TileSplitter: Attempting to spawn a random special tile near {originalPosition}.");
+            SpecialTileManager.Instance?.SpawnRandomSpecialTile(originalPosition);
+        }
+        else
+        {
+            Debug.Log("TileSplitter: Random chance did not trigger special tile spawn.");
         }
 
-        // Add score for the split
-        ScoreManager.Instance.AddSplitScore(originalValue); // Add points for the total value of resulting split tiles
+        ScoreManager.Instance.AddSplitScore(originalValue);
     }
 
     private static List<Vector2Int> FindSplitPositions(Vector2Int originalPos)

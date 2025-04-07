@@ -314,11 +314,18 @@ public class SpawningNewTileState : GameState
     {
         Debug.Log("SpawningNewTileState: Spawning a new tile...");
 
-        // Spawn a random new tile in a random location, avoiding adjacent cells of the merged cell if applicable
-        BoardManager.Instance.GenerateRandomStartingTiles(1, 1, mergedCellPosition);
+        bool tileSpawned = BoardManager.Instance.GenerateRandomStartingTiles(1, 1, mergedCellPosition);
 
-        // Transition to CheckingGameOverState after spawning the tile
-        GameStateManager.Instance.SetState(new CheckingGameOverState());
+        if (tileSpawned)
+        {
+            Debug.Log("SpawningNewTileState: Tile spawned successfully. Transitioning to CheckingGameOverState.");
+            GameStateManager.Instance.SetState(new CheckingGameOverState());
+        }
+        else
+        {
+            Debug.LogWarning("SpawningNewTileState: No valid positions to spawn a new tile. Checking game over.");
+            GameOverManager.Instance.CheckGameOver();
+        }
     }
 
     public override void Update() { }
@@ -338,6 +345,8 @@ public class SpecialTileActionState : GameState
     {
         Debug.Log("SpecialTileActionState: Activating all special tiles...");
         SpecialTileManager.Instance.ActivateAllSpecialTiles();
+
+        // Transition to CheckingGameOverState after activation
         GameStateManager.Instance.SetState(new CheckingGameOverState());
     }
 
@@ -362,19 +371,15 @@ public class CheckingGameOverState : GameState
     public override void Enter()
     {
         Debug.Log("CheckingGameOverState: Checking game over...");
-        if (!BoardManager.Instance.HasValidMove())
+
+        if (GameOverManager.Instance == null)
         {
-            GameStateManager.Instance.SetState(new GameOverState());
-        }
-        else if (SpecialTileManager.Instance != null && SpecialTileManager.Instance.GetSpecialTileAtPosition(BoardManager.Instance.lastMergedCellPosition ?? Vector2Int.zero) != null)
-        {
-            Debug.Log("CheckingGameOverState: Special tile detected. Transitioning to SpecialTileActionState.");
-            GameStateManager.Instance.SetState(new SpecialTileActionState());
-        }
-        else
-        {
+            Debug.LogError("CheckingGameOverState: GameOverManager.Instance is null. Ensure it is properly instantiated.");
             GameStateManager.Instance.SetState(new WaitingForInputState());
+            return;
         }
+
+        GameOverManager.Instance.CheckGameOver();
     }
 
     public override void Update() { }

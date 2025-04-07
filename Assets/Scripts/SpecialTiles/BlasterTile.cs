@@ -54,8 +54,17 @@ public class BlasterTile : SpecialTile
 
     private void DestroyTile()
     {
+        Vector2Int tilePosition = BoardManager.Instance.GetGridPositionFromWorldPosition(transform.position);
+
+        // Unregister from SpecialTileManager
         SpecialTileManager.Instance.UnregisterSpecialTile(this);
-        BoardManager.Instance.ClearCell(BoardManager.Instance.GetGridPositionFromWorldPosition(transform.position));
+
+        // Clear the cell in BoardManager
+        BoardManager.Instance.ClearCell(tilePosition);
+
+        // Destroy the game object
         Destroy(gameObject);
+
+        Debug.Log($"BlasterTile: Destroyed at {tilePosition}.");
     }
 }

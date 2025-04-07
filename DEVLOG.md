@@ -244,3 +244,47 @@
 ## 📋 Summary
 This development log provides a clear overview of recent updates, upcoming tasks, and the overall roadmap for Tilebreakers. The focus is on enhancing gameplay, adding new features, and improving the user experience.
 
+# Development Log
+
+## Latest Updates
+
+### Special Tiles
+- **BlasterTile**: Added functionality to destroy adjacent tiles (orthogonal and diagonal).
+- **FreezeTile**: Skips the next tile spawn and includes optional visual effects.
+- **DoublerTile**: Doubles the value of adjacent tiles.
+- **PainterTile**: Converts adjacent tiles to its own color.
+
+### Game States
+- Enhanced state management with new states:
+  - `SpecialTileActionState`: Handles activation of special tiles.
+  - `SpecialTileSpawningState`: Manages spawning of special tiles.
+  - `CheckingGameOverState`: Verifies game-over conditions.
+- Improved transitions between states with delayed execution support.
+
+### UI Improvements
+- Added dynamic level display in the top bar.
+- Updated move count and score display logic.
+- Enhanced game over screen with final score display.
+
+### Tile Interactions
+- Clicking a selected tile again now deselects it.
+- Improved merging logic to handle distance-based criteria.
+- Added animations for tile spawning, merging, and movement.
+
+### Debugging and Logging
+- Added detailed logs for tile interactions, special tile activations, and game state transitions.
+- Improved error handling for missing components or invalid configurations.
+
+### Level Management
+- Introduced `LevelManager` to handle level progression and configurations.
+- Added `LevelData` scriptable objects for defining level-specific settings.
+
+### Miscellaneous
+- Increased `SPECIAL_TILE_CHANCE` to 50% for testing purposes.
+- Refactored `BoardManager` to improve alternative position handling for special tile spawning.
+
+## Next Steps
+- Add more special tile types with unique abilities.
+- Implement timed levels and move-limited challenges.
+- Optimize performance for larger grid sizes.
+
