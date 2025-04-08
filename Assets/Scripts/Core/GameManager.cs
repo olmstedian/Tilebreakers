@@ -9,6 +9,7 @@ public class GameManager : MonoBehaviour
     [SerializeField] private GameObject gameStateManagerPrefab;
     [SerializeField] private GameObject specialTileUIPrefab; // Keep this for UI
     [SerializeField] private GameObject gameOverManagerPrefab; // Add a reference to the GameOverManager prefab
+    [SerializeField] private GameObject gridManagerPrefab;
 
     private void Awake()
     {
@@ -48,6 +49,12 @@ public class GameManager : MonoBehaviour
         {
             Debug.LogError("GameManager: Tile prefab is not assigned in BoardManager. Cannot start the game.");
             return;
+        }
+
+        // Initialize the Grid Manager for enhanced visual effects
+        if (gridManagerPrefab != null && FindObjectOfType<GridManager>() == null)
+        {
+            Instantiate(gridManagerPrefab, transform);
         }
 
         GameStateManager.Instance?.SetState(new BootState());

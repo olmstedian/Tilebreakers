@@ -19,15 +19,15 @@ public class TileMerger : MonoBehaviour
 
         if (!ColorMatch(staticTile.tileColor, movingTile.tileColor)) return false;
 
-        // Calculate the Manhattan distance between the tiles
+        // Ensure the tiles are within the allowed distance
         Vector2Int staticPos = BoardManager.Instance.GetGridPositionFromWorldPosition(staticTile.transform.position);
         Vector2Int movingPos = BoardManager.Instance.GetGridPositionFromWorldPosition(movingTile.transform.position);
-        int distance = Mathf.Abs(staticPos.x - movingPos.x) + Mathf.Abs(staticPos.y - movingPos.y);
+        Vector2Int direction = movingPos - staticPos;
 
-        // Check if the distance-based merging criteria are met
-        if (distance > movingTile.number)
+        if ((Mathf.Abs(direction.x) + Mathf.Abs(direction.y)) > movingTile.number || 
+            (direction.x != 0 && direction.y != 0))
         {
-            Debug.LogWarning($"TileMerger: Merge failed. Distance ({distance}) exceeds moving tile's number ({movingTile.number}).");
+            Debug.LogWarning("TileMerger: Merge failed. Tiles are not within the allowed distance or direction.");
             return false;
         }
 
@@ -36,6 +36,10 @@ public class TileMerger : MonoBehaviour
         staticTile.UpdateVisuals();
         Object.Destroy(movingTile.gameObject);
 
+        // Update the board state
+        BoardManager.Instance.ClearCell(movingPos);
+        BoardManager.Instance.SetTileAtPosition(staticPos, staticTile);
+
         // Track the merged cell
         BoardManager.Instance.lastMergedCellPosition = staticPos;
 
@@ -43,7 +47,6 @@ public class TileMerger : MonoBehaviour
         ScoreManager.Instance.AddMergeScore(staticTile.number);
 
         // Trigger special tile spawning after the merge
-        Debug.Log($"TileMerger: Checking for special tile spawn at {staticPos}.");
         BoardManager.Instance.TriggerSpecialTileSpawn(staticPos);
 
         // Delegate splitting logic to TileSplitter

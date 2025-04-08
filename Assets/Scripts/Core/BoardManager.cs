@@ -14,6 +14,15 @@ public class BoardManager : MonoBehaviour
     public GameObject cellIndicatorPrefab;
     public GameObject gridBackgroundPrefab;
 
+    [Header("Visual Settings")]
+    public Color gridBackgroundColor = new Color(0.2f, 0.2f, 0.25f);
+    public Color gridLineColor = new Color(0.3f, 0.3f, 0.35f);
+    public float gridLineWidth = 0.05f;
+    public bool useRoundedCorners = true;
+    public float cornerRadius = 0.1f;
+    [Range(0f, 0.5f)] public float cellSpacing = 0.1f;
+    [SerializeField] private Material gridCellMaterial;
+
     private Tile[,] board;
     private HashSet<Vector2Int> emptyCells;
     private Queue<Vector2Int> prioritizedSpawnLocations;
@@ -83,15 +92,99 @@ public class BoardManager : MonoBehaviour
 
     private void CreateGridBackground()
     {
+        // Create a parent object for the grid background
+        GameObject gridParent = new GameObject("GridBackground");
+        gridParent.transform.SetParent(transform);
+        
+        float actualCellSize = cellSize - cellSpacing;
+        
+        // First, create a background panel for the entire grid
+        GameObject backgroundPanel = new GameObject("BoardBackground");
+        backgroundPanel.transform.SetParent(gridParent.transform);
+        
+        SpriteRenderer panelRenderer = backgroundPanel.AddComponent<SpriteRenderer>();
+        panelRenderer.sprite = CreateRoundedRectSprite(width * cellSize + cellSpacing, height * cellSize + cellSpacing, cornerRadius * 2);
+        panelRenderer.color = gridBackgroundColor;
+        panelRenderer.sortingOrder = -2;
+        backgroundPanel.transform.position = new Vector3(0, 0, 0.1f);
+
+        // Now create individual cell backgrounds
         for (int x = 0; x < width; x++)
         {
             for (int y = 0; y < height; y++)
             {
                 Vector2 position = GetWorldPosition(new Vector2Int(x, y));
-                GameObject gridCellBackground = Instantiate(gridBackgroundPrefab, position, Quaternion.identity, transform);
-                gridCellBackground.transform.localScale = new Vector3(cellSize * 1.02f, cellSize * 1.02f, 1f);
-                gridCellBackground.name = $"GridBackground ({x}, {y})";
+                GameObject gridCellBackground = new GameObject($"GridCell ({x}, {y})");
+                gridCellBackground.transform.SetParent(gridParent.transform);
+                gridCellBackground.transform.position = position;
+                
+                SpriteRenderer cellRenderer = gridCellBackground.AddComponent<SpriteRenderer>();
+                cellRenderer.sprite = CreateRoundedRectSprite(actualCellSize, actualCellSize, cornerRadius);
+                cellRenderer.color = gridLineColor;
+                cellRenderer.sortingOrder = -1;
+                
+                if (gridCellMaterial != null)
+                {
+                    cellRenderer.material = gridCellMaterial;
+                }
+                
+                // Add subtle animation
+                StartCoroutine(PulseCell(gridCellBackground, 0.95f, 1.0f, 2f + Random.value));
             }
+        }
+    }
+
+    private Sprite CreateRoundedRectSprite(float width, float height, float radius)
+    {
+        int textureSize = 128;
+        Texture2D texture = new Texture2D(textureSize, textureSize);
+        
+        Color transparentColor = new Color(1f, 1f, 1f, 0f);
+        Color whiteColor = Color.white;
+        
+        for (int x = 0; x < textureSize; x++)
+        {
+            for (int y = 0; y < textureSize; y++)
+            {
+                // Normalize coordinates to -0.5...0.5
+                float nx = (x / (float)textureSize) - 0.5f;
+                float ny = (y / (float)textureSize) - 0.5f;
+                
+                // Scale to match target width/height
+                float scaledX = nx * width;
+                float scaledY = ny * height;
+                
+                // Calculate distance from nearest edge
+                float dx = Mathf.Max(Mathf.Abs(scaledX) - width/2f + radius, 0);
+                float dy = Mathf.Max(Mathf.Abs(scaledY) - height/2f + radius, 0);
+                
+                // If in corner region, calculate distance from corner
+                float distanceFromCorner = Mathf.Sqrt(dx * dx + dy * dy);
+                
+                if (distanceFromCorner <= radius)
+                    texture.SetPixel(x, y, whiteColor);
+                else if (Mathf.Abs(scaledX) <= width/2f && Mathf.Abs(scaledY) <= height/2f)
+                    texture.SetPixel(x, y, whiteColor);
+                else
+                    texture.SetPixel(x, y, transparentColor);
+            }
+        }
+        
+        texture.Apply();
+        return Sprite.Create(texture, new Rect(0, 0, textureSize, textureSize), new Vector2(0.5f, 0.5f), 100);
+    }
+
+    private IEnumerator PulseCell(GameObject cell, float minScale, float maxScale, float period)
+    {
+        while (cell != null)
+        {
+            float t = (1 + Mathf.Sin(Time.time * 2 * Mathf.PI / period)) / 2;
+            float scale = Mathf.Lerp(minScale, maxScale, t);
+            
+            if (cell != null) // Check again in case it was destroyed
+                cell.transform.localScale = new Vector3(scale, scale, 1);
+                
+            yield return null;
         }
     }
 
@@ -247,7 +340,7 @@ public class BoardManager : MonoBehaviour
         return board[position.x, position.y];
     }
 
-    private void SetTileAtPosition(Vector2Int position, Tile tile)
+    public void SetTileAtPosition(Vector2Int position, Tile tile)
     {
         board[position.x, position.y] = tile;
     }
@@ -427,30 +520,34 @@ public class BoardManager : MonoBehaviour
 
             if (selectedTile != null)
             {
-                // Check if the tiles can merge based on distance and number
+                // Check if the tiles can merge based on distance, number, and direction
                 Vector2Int selectedPos = selectedTilePosition;
-                int distance = Mathf.Abs(selectedPos.x - gridPosition.x) + Mathf.Abs(selectedPos.y - gridPosition.y);
+                Vector2Int direction = gridPosition - selectedPos;
 
-                if (CompareColors(selectedTile.tileColor, tile.tileColor) && distance <= selectedTile.number)
+                // Ensure the direction is orthogonal (left, right, up, down)
+                if ((direction.x == 0 || direction.y == 0) && Mathf.Abs(direction.x + direction.y) <= selectedTile.number)
                 {
-                    Tile tempSourceTile = selectedTile;
-                    Vector2Int tempSourcePos = selectedTilePosition;
-
-                    ClearAllSelectionState();
-
-                    StartCoroutine(MoveTileToTargetForMerge(tempSourceTile, tile, () =>
+                    if (CompareColors(selectedTile.tileColor, tile.tileColor))
                     {
-                        if (TileMerger.MergeTiles(tile, tempSourceTile))
+                        Tile tempSourceTile = selectedTile;
+                        Vector2Int tempSourcePos = selectedTilePosition;
+
+                        ClearAllSelectionState();
+
+                        StartCoroutine(MoveTileToTargetForMerge(tempSourceTile, tile, () =>
                         {
-                            ClearCell(tempSourcePos);
-                            emptyCells.Add(tempSourcePos);
+                            if (TileMerger.MergeTiles(tile, tempSourceTile))
+                            {
+                                ClearCell(tempSourcePos);
+                                emptyCells.Add(tempSourcePos);
 
-                            SetTileAtPosition(gridPosition, tile);
-                        }
-                    }));
+                                SetTileAtPosition(gridPosition, tile);
+                            }
+                        }));
 
-                    GameManager.Instance.EndTurn();
-                    return;
+                        GameManager.Instance.EndTurn();
+                        return;
+                    }
                 }
             }
 
@@ -495,10 +592,30 @@ public class BoardManager : MonoBehaviour
 
     private void HighlightCell(Vector2Int position)
     {
-        // Add visual feedback for valid move cells (e.g., change cell color)
         GameObject cellIndicator = Instantiate(cellIndicatorPrefab, GetWorldPosition(position), Quaternion.identity, transform);
-        cellIndicator.tag = "Highlight"; // Assign the correct tag
-        cellIndicator.GetComponent<SpriteRenderer>().color = new Color(0.5f, 1f, 0.5f, 0.5f); // Highlight color
+        cellIndicator.tag = "Highlight";
+        
+        SpriteRenderer highlightRenderer = cellIndicator.GetComponent<SpriteRenderer>();
+        if (highlightRenderer != null)
+        {
+            // Use a more attractive highlight color with gentle gradient
+            highlightRenderer.color = new Color(0.4f, 0.8f, 1f, 0.6f);
+            highlightRenderer.material = new Material(Shader.Find("Sprites/Default"));
+            highlightRenderer.material.SetColor("_Color", highlightRenderer.color);
+            
+            // Make it slightly smaller than the cell to create a nice border effect
+            cellIndicator.transform.localScale = new Vector3(cellSize * 0.9f, cellSize * 0.9f, 1f);
+            
+            // Add pulsing animation for the highlight
+            LeanTween.scale(cellIndicator, new Vector3(cellSize * 0.95f, cellSize * 0.95f, 1f), 0.6f)
+                .setEaseInOutSine()
+                .setLoopPingPong();
+                
+            // Animate the opacity for better visibility
+            LeanTween.alpha(cellIndicator, 0.4f, 0.8f)
+                .setEaseInOutSine()
+                .setLoopPingPong();
+        }
     }
 
     public void ClearHighlights()
@@ -531,7 +648,6 @@ public class BoardManager : MonoBehaviour
 
     private void HandleTileMoveConfirmation(Vector2Int targetPosition)
     {
-        // If we're not in PlayerTurnState, ignore move
         if (GameStateManager.Instance != null && !GameStateManager.Instance.IsInState<WaitingForInputState>())
         {
             return;
@@ -541,7 +657,7 @@ public class BoardManager : MonoBehaviour
         {
             return;
         }
-        
+
         if (!IsWithinBounds(targetPosition))
         {
             return;
@@ -550,76 +666,41 @@ public class BoardManager : MonoBehaviour
         // If the clicked cell is the same as the selected tile's cell, do nothing.
         if (targetPosition == selectedTilePosition)
         {
-            // Don't deselect the tile - keep it selected
             return;
         }
 
-        // Check if the target cell is already occupied for potential merge.
-        if (IsCellOccupied(targetPosition))
+        // Check if the move is valid by ensuring the target is within the allowed distance
+        Vector2Int direction = targetPosition - selectedTilePosition;
+        if ((Mathf.Abs(direction.x) + Mathf.Abs(direction.y)) <= selectedTile.number && 
+            (direction.x == 0 || direction.y == 0))
         {
-            Tile targetTile = GetTileAtPosition(targetPosition);
-            
-            bool colorsMatch = CompareColors(targetTile.tileColor, selectedTile.tileColor);
-            
-            if (colorsMatch && targetTile != selectedTile)
+            if (IsCellOccupied(targetPosition))
             {
-                // Clear the selected tile's position before moving it
-                ClearCell(selectedTilePosition);
-                emptyCells.Add(selectedTilePosition);
-                
-                // Execute merge immediately to avoid race conditions
-                bool mergeSuccessful = TileMerger.MergeTiles(targetTile, selectedTile);
-                
-                if (mergeSuccessful) 
-                {
-                    // Play a merge animation on the target tile
-                    TileAnimator animator = targetTile.GetComponent<TileAnimator>();
-                    if (animator != null)
-                    {
-                        animator.PlayMergeAnimation();
-                    }
-                }
-                
-                selectedTile = null;
-                ClearHighlights();
-                GameManager.Instance.EndTurn();
-                return;
-            }
-            else
-            {
-                // Don't deselect - allow the player to try a different move
-                return;
-            }
-        }
+                Tile targetTile = GetTileAtPosition(targetPosition);
 
-        // Check if the move is valid by checking if targetPosition is among the highlighted valid moves
-        if (IsValidMove(selectedTilePosition, targetPosition, selectedTile.number))
-        {
-            // Store the tile and position before clearing selection
-            Tile tileToMove = selectedTile;
-            Vector2Int startPos = selectedTilePosition;
-            
-            // Clear selection before moving
-            ClearAllSelectionState();
-            
-            // Use the stored references to move the tile
-            MoveTile(tileToMove, startPos, targetPosition);
-            
-            // Update to use GameStateManager for state transition
-            if (GameStateManager.Instance != null)
-            {
-                // Use transition with delay to let animation complete
-                GameStateManager.Instance.SetStateWithDelay(new SpawningNewTileState(), 0.5f);
+                if (CompareColors(selectedTile.tileColor, targetTile.tileColor))
+                {
+                    ClearCell(selectedTilePosition);
+                    emptyCells.Add(selectedTilePosition);
+
+                    if (TileMerger.MergeTiles(targetTile, selectedTile))
+                    {
+                        TileAnimator animator = targetTile.GetComponent<TileAnimator>();
+                        animator?.PlayMergeAnimation();
+                    }
+
+                    selectedTile = null;
+                    ClearHighlights();
+                    GameManager.Instance.EndTurn();
+                    return;
+                }
             }
             else
             {
-                // Fallback if state manager is not available
+                MoveTile(selectedTile, selectedTilePosition, targetPosition);
+                ClearAllSelectionState();
                 GameManager.Instance.EndTurn();
             }
-        }
-        else
-        {
-            // Don't deselect - allow player to try a different move
         }
     }
 

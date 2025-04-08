@@ -1,5 +1,6 @@
 using UnityEngine;
 using TMPro;
+using System.Collections;
 
 public class Tile : MonoBehaviour
 {
@@ -11,6 +12,15 @@ public class Tile : MonoBehaviour
         Merging
     }
 
+    [Header("Visual Properties")]
+    [SerializeField] private Material tileBaseMaterial;
+    [SerializeField] private Material tileSelectedMaterial;
+    [SerializeField] private float cornerRadius = 0.15f;
+    [SerializeField] private float outlineWidth = 0.05f;
+    [SerializeField] private Color outlineColor = new Color(1f, 1f, 1f, 0.5f);
+    [SerializeField] private float glowIntensity = 0.2f;
+    [SerializeField] private float pulseSpeed = 1.5f;
+
     public TileState CurrentState { get; private set; } = TileState.Idle;
 
     public Color tileColor;
@@ -18,11 +28,15 @@ public class Tile : MonoBehaviour
 
     private SpriteRenderer spriteRenderer;
     private TextMeshPro textMeshPro;
+    private MaterialPropertyBlock propBlock;
+    private Color originalOutlineColor;
+    private Color textColor;
 
     void Awake()
     {
         spriteRenderer = GetComponent<SpriteRenderer>();
         textMeshPro = GetComponentInChildren<TextMeshPro>();
+        propBlock = new MaterialPropertyBlock();
 
         if (textMeshPro == null)
         {
@@ -32,6 +46,18 @@ public class Tile : MonoBehaviour
         else
         {
             ConfigureTextMeshPro();
+        }
+
+        originalOutlineColor = outlineColor;
+
+        // Set corner radius in material if possible
+        if (spriteRenderer != null && spriteRenderer.sharedMaterial != null)
+        {
+            propBlock.SetFloat("_CornerRadius", cornerRadius);
+            propBlock.SetFloat("_OutlineWidth", outlineWidth);
+            propBlock.SetColor("_OutlineColor", outlineColor);
+            propBlock.SetFloat("_GlowIntensity", 0f); // Start with no glow
+            spriteRenderer.SetPropertyBlock(propBlock);
         }
     }
 
@@ -43,18 +69,11 @@ public class Tile : MonoBehaviour
         if (spriteRenderer == null)
             spriteRenderer = GetComponent<SpriteRenderer>();
 
-        if (spriteRenderer != null)
-            spriteRenderer.color = tileColor;
-
         if (textMeshPro == null)
             CreateTextMeshPro();
 
-        if (textMeshPro != null)
-        {
-            textMeshPro.text = number.ToString();
-            textMeshPro.ForceMeshUpdate();
-            textMeshPro.gameObject.SetActive(true);
-        }
+        // Calculate text color based on tile color brightness
+        textColor = CalculateTextColor(tileColor);
 
         UpdateVisuals();
         PlaySpawnAnimation();
@@ -68,7 +87,10 @@ public class Tile : MonoBehaviour
         if (textMeshPro == null)
             textMeshPro = GetComponentInChildren<TextMeshPro>();
 
-        float brightnessFactor = Mathf.Lerp(0.8f, 1.2f, Mathf.Log10(number + 1) / 3f);
+        // Scale brightness based on number value (higher numbers are brighter)
+        float brightnessFactor = Mathf.Lerp(0.8f, 1.3f, Mathf.Log10(number + 1) / 3f);
+        
+        // Make tile colors more vibrant
         Color adjustedColor = new Color(
             Mathf.Clamp01(tileColor.r * brightnessFactor),
             Mathf.Clamp01(tileColor.g * brightnessFactor),
@@ -77,14 +99,31 @@ public class Tile : MonoBehaviour
         );
 
         if (spriteRenderer != null)
-            spriteRenderer.color = adjustedColor;
+        {
+            propBlock.SetColor("_Color", adjustedColor);
+            spriteRenderer.SetPropertyBlock(propBlock);
+        }
 
         if (textMeshPro != null)
         {
             textMeshPro.text = number.ToString();
-            textMeshPro.color = adjustedColor.grayscale > 0.5f ? Color.black : Color.white;
+            textMeshPro.color = textColor;
+            
+            // Scale text size based on number digits
+            int digitCount = Mathf.FloorToInt(Mathf.Log10(number) + 1);
+            textMeshPro.fontSize = Mathf.Lerp(8, 4, Mathf.Clamp01((digitCount - 1) / 3.0f));
+            
             textMeshPro.ForceMeshUpdate();
         }
+    }
+
+    private Color CalculateTextColor(Color backgroundColor)
+    {
+        // Calculate brightness using perceptual luminance formula
+        float luminance = 0.299f * backgroundColor.r + 0.587f * backgroundColor.g + 0.114f * backgroundColor.b;
+        
+        // Use white text on dark backgrounds, black text on light backgrounds
+        return luminance > 0.5f ? Color.black : Color.white;
     }
 
     public void SetState(TileState newState)
@@ -102,13 +141,27 @@ public class Tile : MonoBehaviour
         {
             case TileState.Idle:
                 transform.localScale = Vector3.one;
+                StopAllCoroutines();
+                StartCoroutine(SubtleIdleAnimation());
                 break;
+                
             case TileState.Selected:
+                StopAllCoroutines();
                 LeanTween.scale(gameObject, Vector3.one * 1.1f, 0.2f).setEaseOutBack();
+                StartCoroutine(PulseOutline());
+                
+                // Set glow intensity
+                if (spriteRenderer != null)
+                {
+                    propBlock.SetFloat("_GlowIntensity", glowIntensity);
+                    spriteRenderer.SetPropertyBlock(propBlock);
+                }
                 break;
+                
             case TileState.Moving:
                 LeanTween.scale(gameObject, Vector3.one, 0.2f).setEaseInBack();
                 break;
+                
             case TileState.Merging:
                 LeanTween.scale(gameObject, Vector3.one * 1.2f, 0.2f).setEaseOutBack().setOnComplete(() =>
                 {
@@ -123,16 +176,72 @@ public class Tile : MonoBehaviour
         if (state == TileState.Selected || state == TileState.Moving || state == TileState.Merging)
         {
             LeanTween.cancel(gameObject);
-            transform.localScale = Vector3.one;
+            
+            // Reset glow intensity
+            if (spriteRenderer != null)
+            {
+                propBlock.SetFloat("_GlowIntensity", 0f);
+                propBlock.SetColor("_OutlineColor", originalOutlineColor);
+                spriteRenderer.SetPropertyBlock(propBlock);
+            }
         }
+        transform.localScale = Vector3.one;
     }
 
     public void ClearSelectionState()
     {
         // Reset the tile's state visually and logically
         LeanTween.cancel(gameObject);
+        StopAllCoroutines();
         UpdateVisuals();
         transform.localScale = Vector3.one;
+        
+        // Reset material properties
+        if (spriteRenderer != null)
+        {
+            propBlock.SetFloat("_GlowIntensity", 0f);
+            propBlock.SetColor("_OutlineColor", originalOutlineColor);
+            spriteRenderer.SetPropertyBlock(propBlock);
+        }
+        
+        StartCoroutine(SubtleIdleAnimation());
+    }
+
+    // Subtle continuous animation for idle tiles
+    private IEnumerator SubtleIdleAnimation()
+    {
+        Vector3 originalScale = Vector3.one;
+        float time = 0;
+        
+        while (true)
+        {
+            time += Time.deltaTime;
+            float scale = 1 + Mathf.Sin(time * 0.5f) * 0.01f; // Very subtle 1% size oscillation
+            transform.localScale = originalScale * scale;
+            yield return null;
+        }
+    }
+
+    // Pulse outline color for selected state
+    private IEnumerator PulseOutline()
+    {
+        Color brightOutline = new Color(1f, 1f, 1f, 0.8f);
+        float time = 0;
+        
+        while (true)
+        {
+            time += Time.deltaTime * pulseSpeed;
+            float t = (Mathf.Sin(time * 6) + 1) * 0.5f; // Oscillate between 0 and 1
+            Color pulseColor = Color.Lerp(originalOutlineColor, brightOutline, t);
+            
+            if (spriteRenderer != null)
+            {
+                propBlock.SetColor("_OutlineColor", pulseColor);
+                spriteRenderer.SetPropertyBlock(propBlock);
+            }
+            
+            yield return null;
+        }
     }
 
     private void CreateTextMeshPro()
