@@ -244,63 +244,79 @@
 ## 📋 Summary
 This development log provides a clear overview of recent updates, upcoming tasks, and the overall roadmap for Tilebreakers. The focus is on enhancing gameplay, adding new features, and improving the user experience.
 
-# Development Log
+# Developer Log - Tilebreakers
 
-## Latest Updates (June 2023)
+## [Latest Update] - 2023-11-30
+### Added
+- **PainterTile Special Ability**: Implemented new special tile that changes the color of adjacent tiles to match its own color
+- **Enhanced Visual Highlighting System**: 
+  - Blue highlights for movement options
+  - Gold/orange highlights for merge targets
+  - Improved visual feedback on selection and targeting
+- **Weighted Randomization**: Added weighted probability system for special tile spawning, with increased chance for PainterTile
+- **Debug Logging**: Enhanced debug information for game states and tile operations
 
-### BlasterTile Audio-Visual Enhancements
-- **Added Audio Effects**:
-  - Implemented main explosion sound with randomized pitch.
-  - Added "crack" sounds for each destroyed adjacent tile.
-  - Set up audio source components and volume controls.
-- **Visual Improvements**:
-  - Increased BlasterTile size by 15% for better visibility.
-  - Added pulsing animation between original and highlight colors.
-  - Adjusted text scale to fit the larger tile.
-  - Enhanced explosion effects with particle systems.
-- **Usability**:
-  - Ensured proper cleanup of resources when BlasterTile is destroyed.
-  - Added clear debug logs for tracking special tile activations.
+### Changed
+- **Special Tile Integration**: 
+  - Improved integration of special tiles with the existing game flow
+  - Enhanced alternative position finding for special tiles when original position is occupied
+- **UI Updates**: 
+  - Updated UIManager to handle and display special tile information
+  - Improved visual feedback for all special tile activations
+- **Code Organization**: Centralized tile splitting logic in TileSplitter.cs for better maintenance
 
-### Tile Selection Improvements
-- Added deselection functionality when clicking an already selected tile.
-- Improved visual feedback for selections with clearer highlight colors.
-- Adjusted selection state handling to prevent edge cases with stale selections.
+### Fixed
+- **Color Comparison**: Enhanced color matching algorithm with tolerance adjustment
+- **Position Validation**: Improved position validation for tile spawning and movement
+- **Selection State**: Fixed issues with tile selection and deselection mechanics
+- **Special Tile Spawning**: Fixed bugs when spawning special tiles at occupied positions
+- **Merge Logic**: Fixed edge cases in tile merging mechanics
 
-### Special Tile Spawning System
-- Optimized `FindAlternativePosition` algorithm to find valid positions more reliably:
-  - Added HashSet to track checked positions and avoid duplication.
-  - Implemented queue-based system to prioritize nearby positions.
-  - Improved fallback mechanism to use any empty cell when needed.
-- Reduced redundant warnings in console logs when spawning special tiles.
-- Made special tile trigger chance configurable via Constants.cs.
+## [Previous Update] - 2023-11-25
+### Added
+- **BlasterTile Enhancements**: Improved visual and audio effects for BlasterTile explosions
+- **FreezeTile Special Ability**: Added special tile that skips the next tile spawn
+- **DoublerTile Special Ability**: Added special tile that doubles the value of adjacent tiles
+- **Level Management**: Enhanced level progression system with score targets and level-specific grid configurations
 
-### FreezeTile Improvements
-- Fixed issue with SkipNextTileSpawn functionality.
-- Added particle effect support for tile activation.
-- Ensured proper cleanup and board state updates when FreezeTile is used.
+### Changed
+- **Visual Feedback**: Improved animations for tile selection, movement, and merging
+- **Special Tile Spawning**: Adjusted special tile spawn rates
+- **Board Management**: Optimized board state tracking and position calculations
+- **State Management**: Refined game state transitions for smoother gameplay flow
 
-### Game Board Management
-- Improved tile deletion logic to properly update board state.
-- Added logging for board status to help with debugging.
-- Added null checks to prevent NullReferenceExceptions in board operations.
+### Fixed
+- **Merge Logic**: Fixed issues with tile merging and position validation
+- **Selection Handling**: Improved tile selection and deselection mechanics
+- **Game Over Detection**: Fixed bug in valid move detection for game over state
+- **Highlighting**: Fixed issues with highlight cleanup and visual artifacts
 
-### UI Enhancements
-- Updated top bar with level information.
-- Improved transition between game states with smoother animations.
-- Added feedback for special tile activation.
+## 2023-11-10
+### Added
+- **Grid System**: Dynamic grid generation with configurable dimensions
+- **Scoring System**: Basic score tracking for merged tiles
+- **Tile Splitting**: Functionality for tiles to split when reaching high values
 
-### Miscellaneous
-- Fixed several bugs in tile merging and splitting logic.
-- Improved error handling for edge cases in game state transitions.
-- Added additional documentation comments to clarify code functionality.
-- Fixed issues with overlapping colliders during tile movement.
+### Changed
+- **Tile Animation**: Enhanced movement and merge animations
+- **UI Elements**: Improved game interface with score tracking and move counter
+- **GameStateManager**: Implemented robust state management system
 
-## Next Steps
-- Implement more sound effects for regular tile interactions.
-- Add visual effects for tile merging.
-- Create a coherent visual theme for the game.
-- Improve special tile spawning rate balance.
-- Add a tutorial system.
-- Create level progression with increasing difficulty.
+### Fixed
+- **Tile Movement**: Fixed issues with tile movement validation
+- **Board Initialization**: Addressed problems with board setup and tile spawning
+
+## 2023-10-20
+### Added
+- **Basic Gameplay**: Core tile movement and merging mechanics
+- **Grid System**: Dynamic grid generation with configurable dimensions
+- **Scoring System**: Basic score tracking for merged tiles
+
+### Changed
+- **Visual Design**: Updated tile appearance with clearer number display
+- **Game Loop**: Implemented turn-based gameplay loop
+
+### Fixed
+- **Input Handling**: Refined touch and mouse input detection
+- **Position Calculation**: Fixed grid position calculations for proper tile placement
 

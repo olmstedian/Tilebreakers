@@ -12,49 +12,86 @@ public class TileMerger : MonoBehaviour
     /// <returns>True if merge was successful, false otherwise</returns>
     public static bool MergeTiles(Tile staticTile, Tile movingTile, int splitThreshold = 12)
     {
-        if (staticTile == null || movingTile == null || staticTile == movingTile) return false;
+        Debug.Log($"TileMerger: MergeTiles called with staticTile:{staticTile?.number}, movingTile:{movingTile?.number}");
+        
+        if (staticTile == null) {
+            Debug.LogError("TileMerger: staticTile is null!");
+            return false;
+        }
+        
+        if (movingTile == null) {
+            Debug.LogError("TileMerger: movingTile is null!");
+            return false;
+        }
+        
+        if (staticTile == movingTile) {
+            Debug.LogError("TileMerger: Cannot merge a tile with itself!");
+            return false;
+        }
 
         staticTile.ClearSelectionState();
         movingTile.ClearSelectionState();
 
-        if (!ColorMatch(staticTile.tileColor, movingTile.tileColor)) return false;
+        if (!ColorMatch(staticTile.tileColor, movingTile.tileColor)) {
+            Debug.LogError("TileMerger: Color mismatch between tiles!");
+            return false;
+        }
 
         // Ensure the tiles are within the allowed distance
         Vector2Int staticPos = BoardManager.Instance.GetGridPositionFromWorldPosition(staticTile.transform.position);
         Vector2Int movingPos = BoardManager.Instance.GetGridPositionFromWorldPosition(movingTile.transform.position);
         Vector2Int direction = movingPos - staticPos;
+        
+        Debug.Log($"TileMerger: staticPos:{staticPos}, movingPos:{movingPos}, direction:{direction}");
+        Debug.Log($"TileMerger: Manhattan distance:{Mathf.Abs(direction.x) + Mathf.Abs(direction.y)}, movingTile.number:{movingTile.number}");
 
+        // Validate the move is orthogonal and within range
         if ((Mathf.Abs(direction.x) + Mathf.Abs(direction.y)) > movingTile.number || 
             (direction.x != 0 && direction.y != 0))
         {
-            Debug.LogWarning("TileMerger: Merge failed. Tiles are not within the allowed distance or direction.");
+            Debug.LogError("TileMerger: Merge failed. Tiles are not within the allowed distance or direction.");
             return false;
         }
 
         // Perform the merge
+        int originalNumber = staticTile.number;
         staticTile.number += movingTile.number;
+        Debug.Log($"TileMerger: Merging numbers {originalNumber} + {movingTile.number} = {staticTile.number}");
+        
         staticTile.UpdateVisuals();
+        
+        // Destroy the moving tile
+        Debug.Log("TileMerger: Destroying moving tile");
         Object.Destroy(movingTile.gameObject);
 
         // Update the board state
+        Debug.Log($"TileMerger: Updating board state - clearing cell {movingPos} and setting {staticPos}");
         BoardManager.Instance.ClearCell(movingPos);
         BoardManager.Instance.SetTileAtPosition(staticPos, staticTile);
 
-        // Track the merged cell
+        // Always update the lastMergedCellPosition
+        Debug.Log($"TileMerger: Setting lastMergedCellPosition to {staticPos}");
         BoardManager.Instance.lastMergedCellPosition = staticPos;
 
         // Add score for the merge
         ScoreManager.Instance.AddMergeScore(staticTile.number);
+        Debug.Log($"TileMerger: Added merge score for value {staticTile.number}");
 
-        // Trigger special tile spawning after the merge
-        BoardManager.Instance.TriggerSpecialTileSpawn(staticPos);
+        // Trigger special tile spawning after the merge via GameManager instead of directly
+        if (Random.value < Constants.SPECIAL_TILE_CHANCE)
+        {
+            Debug.Log("TileMerger: Triggering special tile spawn via GameManager");
+            GameManager.Instance.SpawnSpecialTile(staticPos, "Blaster"); // Choose a default special tile
+        }
 
-        // Delegate splitting logic to TileSplitter
+        // Check if we need to split the tile
         if (staticTile.number > splitThreshold)
         {
+            Debug.Log($"TileMerger: Tile value {staticTile.number} exceeds split threshold {splitThreshold}, splitting");
             TileSplitter.SplitTile(staticTile, staticPos);
         }
 
+        Debug.Log("TileMerger: Merge completed successfully");
         return true;
     }
 

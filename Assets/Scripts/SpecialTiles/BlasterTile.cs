@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 
 public class BlasterTile : SpecialTile
 {
@@ -188,8 +189,10 @@ public class BlasterTile : SpecialTile
 
     private void DestroyAdjacentTiles(Vector2Int tilePosition)
     {
-        // Destroy all adjacent tiles (orthogonal and diagonal)
-        Vector2Int[] adjacentPositions = new Vector2Int[]
+        Debug.Log($"BlasterTile: Destroying adjacent tiles around position {tilePosition}");
+        
+        // Get all adjacent positions (orthogonal and diagonal)
+        List<Vector2Int> adjacentPositions = new List<Vector2Int>
         {
             tilePosition + Vector2Int.up,
             tilePosition + Vector2Int.down,
@@ -201,21 +204,98 @@ public class BlasterTile : SpecialTile
             tilePosition + Vector2Int.down + Vector2Int.right
         };
 
+        // Log all positions to check
+        Debug.Log($"BlasterTile: Checking {adjacentPositions.Count} adjacent positions");
+        
+        // Special check for merged cell
+        if (BoardManager.Instance.lastMergedCellPosition.HasValue)
+        {
+            Vector2Int mergedPos = BoardManager.Instance.lastMergedCellPosition.Value;
+            Debug.Log($"BlasterTile: Last merged cell was at position {mergedPos}");
+            
+            // If merged cell is adjacent to the blaster, prioritize destroying it
+            if (adjacentPositions.Contains(mergedPos))
+            {
+                Debug.Log($"BlasterTile: Last merged cell {mergedPos} is adjacent to the blaster!");
+                
+                Tile mergedTile = BoardManager.Instance.GetTileAtPosition(mergedPos);
+                if (mergedTile != null)
+                {
+                    Debug.Log($"BlasterTile: Found merged tile at position {mergedPos} with value {mergedTile.number}");
+                    StartCoroutine(DestroyTileWithEffect(mergedTile, mergedPos));
+                }
+            }
+        }
+        
         foreach (Vector2Int pos in adjacentPositions)
         {
-            if (BoardManager.Instance.IsWithinBounds(pos))
+            // Skip if this is the last merged cell we already handled
+            if (BoardManager.Instance.lastMergedCellPosition.HasValue && 
+                BoardManager.Instance.lastMergedCellPosition.Value == pos)
             {
-                Tile adjacentTile = BoardManager.Instance.GetTileAtPosition(pos);
-                if (adjacentTile != null)
+                continue;
+            }
+            
+            Debug.Log($"BlasterTile: Checking position {pos}");
+            
+            // First check if the position is within board bounds
+            if (!BoardManager.Instance.IsWithinBounds(pos))
+            {
+                Debug.Log($"BlasterTile: Position {pos} is out of bounds");
+                continue;
+            }
+                
+            // Directly get any tile at this position (regular or special)
+            Tile adjacentTile = BoardManager.Instance.GetTileAtPosition(pos);
+            if (adjacentTile != null)
+            {
+                Debug.Log($"BlasterTile: Found tile at position {pos} with value {adjacentTile.number}");
+                StartCoroutine(DestroyTileWithEffect(adjacentTile, pos));
+            }
+            else
+            {
+                // Also check for special tiles that might not be registered normally
+                SpecialTile specialTile = SpecialTileManager.Instance.GetSpecialTileAtPosition(pos);
+                if (specialTile != null)
                 {
-                    StartCoroutine(DestroyTileWithEffect(adjacentTile, pos));
+                    Debug.Log($"BlasterTile: Found special tile '{specialTile.specialAbilityName}' at position {pos}");
+                    
+                    // Get the tile component if it exists
+                    Tile tileComponent = specialTile.GetComponent<Tile>();
+                    if (tileComponent != null)
+                    {
+                        StartCoroutine(DestroyTileWithEffect(tileComponent, pos));
+                    }
+                    else
+                    {
+                        // If no tile component, just destroy the special tile directly
+                        SpecialTileManager.Instance.UnregisterSpecialTile(specialTile);
+                        BoardManager.Instance.ClearCell(pos);
+                        Destroy(specialTile.gameObject);
+                        Debug.Log($"BlasterTile: Destroyed special tile at {pos}");
+                    }
+                }
+                else
+                {
+                    Debug.Log($"BlasterTile: No tile found at position {pos}");
                 }
             }
         }
     }
-    
+
     private IEnumerator DestroyTileWithEffect(Tile tile, Vector2Int position)
     {
+        if (tile == null)
+        {
+            Debug.LogWarning("BlasterTile: Attempted to destroy a null tile");
+            yield break;
+        }
+        
+        Debug.Log($"BlasterTile: Destroying tile at position {position} with value {tile.number}");
+        
+        // First mark that we're handling this tile to avoid duplicate destruction
+        BoardManager.Instance.SetTileAtPosition(position, null);
+        
         // Animate tile destruction
         LeanTween.scale(tile.gameObject, Vector3.one * 1.2f, 0.1f).setEaseOutQuad();
         yield return new WaitForSeconds(0.1f);
@@ -236,9 +316,23 @@ public class BlasterTile : SpecialTile
         // Wait for animation to complete
         yield return new WaitForSeconds(0.2f);
         
+        // Ensure the cell is cleared in BoardManager first
+        BoardManager.Instance.ClearCell(position);
+        
+        // Make this cell available for new tile spawns
+        BoardManager.Instance.AddToEmptyCells(position);
+        
+        // Handle case where this is a special tile
+        SpecialTile specialTile = tile.GetComponent<SpecialTile>();
+        if (specialTile != null)
+        {
+            SpecialTileManager.Instance.UnregisterSpecialTile(specialTile);
+        }
+        
         // Clean up
         Destroy(tile.gameObject);
-        BoardManager.Instance.ClearCell(position);
+        
+        Debug.Log($"BlasterTile: Successfully destroyed tile at {position}");
     }
 
     private void DestroyTile()

@@ -1,3 +1,46 @@
+# Tilebreakers
+
+## Overview
+Tilebreakers is a tile-matching puzzle game where players merge and manipulate tiles on a grid. The game combines elements of classic puzzle games with strategic gameplay, requiring players to plan their moves carefully to maximize their score.
+
+## Features
+- **Tile Merging**: Merge tiles of the same color to increase their value
+- **Move Mechanics**: Move tiles across the grid based on their number value
+- **Visual Highlighting System**: Different highlight colors for movement options (blue) and merge targets (gold)
+- **Special Tiles**: Utilize special tiles with unique abilities:
+  - **Blaster**: Destroys adjacent tiles in a 3x3 area
+  - **Freeze**: Skips the next tile spawn
+  - **Doubler**: Doubles the value of adjacent tiles
+  - **Painter**: Changes the color of adjacent tiles to match
+- **Tile Splitting**: Large-value tiles automatically split into multiple smaller tiles when exceeding a threshold
+- **Level Progression**: Multiple levels with increasing difficulty
+- **Score System**: Earn points by merging and manipulating tiles
+
+## How to Play
+1. Select a tile to see possible moves highlighted in blue and possible merges highlighted in gold
+2. Move tiles to empty spaces or merge with same-color tiles
+3. Plan strategically to create high-value merges and utilize special tiles
+4. Progress through levels by reaching the target score
+
+## Controls
+- **Mouse/Touch**: Click/tap to select a tile, then click/tap again to move or merge
+- **Special Tiles**: Click directly on special tiles to activate their abilities
+
+## Development
+This game is developed in Unity and uses a state-based architecture for game flow management. The project includes a modular design with separate components for:
+- Tile management
+- Board management
+- Game state control
+- Special tile abilities
+- Visual effects and animations
+
+## Recent Updates
+- Added Painter special tile that changes adjacent tiles to its color
+- Improved visual highlighting system to distinguish between move targets (blue) and merge targets (gold)
+- Enhanced tile splitting logic with better positioning and color assignment
+- Added weighted randomization for special tile spawning
+- Fixed bugs related to tile merging and board management
+
 # 🧩 Tilebreakers
 
 **Tilebreakers** is a grid-based puzzle game where players merge, split, and activate special tiles to achieve high scores and complete levels.

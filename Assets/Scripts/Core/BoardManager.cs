@@ -504,31 +504,43 @@ public class BoardManager : MonoBehaviour
     {
         if (GameStateManager.Instance != null && !GameStateManager.Instance.IsInState<WaitingForInputState>())
         {
+            Debug.Log("BoardManager: HandleTileSelection aborted - not in WaitingForInputState");
             return;
         }
 
+        Debug.Log($"BoardManager: HandleTileSelection called for position {gridPosition}");
         Tile tile = GetTileAtPosition(gridPosition);
 
         if (tile != null)
         {
+            Debug.Log($"BoardManager: Tile found at {gridPosition} with number {tile.number} and color {tile.tileColor}");
+
             if (selectedTile == tile)
             {
-                // Deselect the tile if it's already selected
+                Debug.Log("BoardManager: Deselecting currently selected tile");
                 ClearSelection();
                 return;
             }
 
             if (selectedTile != null)
             {
-                // Check if the tiles can merge based on distance, number, and direction
-                Vector2Int selectedPos = selectedTilePosition;
-                Vector2Int direction = gridPosition - selectedPos;
-
-                // Ensure the direction is orthogonal (left, right, up, down)
-                if ((direction.x == 0 || direction.y == 0) && Mathf.Abs(direction.x + direction.y) <= selectedTile.number)
+                Debug.Log($"BoardManager: Already have selected tile at {selectedTilePosition} with number {selectedTile.number}");
+                
+                // Check if these tiles can merge
+                Vector2Int direction = gridPosition - selectedTilePosition;
+                int distance = Mathf.Abs(direction.x) + Mathf.Abs(direction.y);
+                
+                Debug.Log($"BoardManager: Checking merge - direction: {direction}, distance: {distance}, max distance allowed: {selectedTile.number}");
+                Debug.Log($"BoardManager: Color match: {CompareColors(selectedTile.tileColor, tile.tileColor)}");
+                
+                // Check valid orthogonal direction for merge
+                if ((direction.x == 0 || direction.y == 0) && distance <= selectedTile.number)
                 {
                     if (CompareColors(selectedTile.tileColor, tile.tileColor))
                     {
+                        Debug.Log("BoardManager: Valid merge detected! Proceeding with merge operation.");
+                        Debug.Log($"BoardManager: Current lastMergedCellPosition is {lastMergedCellPosition}");
+                        
                         Tile tempSourceTile = selectedTile;
                         Vector2Int tempSourcePos = selectedTilePosition;
 
@@ -536,33 +548,77 @@ public class BoardManager : MonoBehaviour
 
                         StartCoroutine(MoveTileToTargetForMerge(tempSourceTile, tile, () =>
                         {
-                            if (TileMerger.MergeTiles(tile, tempSourceTile))
-                            {
-                                ClearCell(tempSourcePos);
-                                emptyCells.Add(tempSourcePos);
+                            ClearCell(tempSourcePos);
+                            emptyCells.Add(tempSourcePos);
 
-                                SetTileAtPosition(gridPosition, tile);
+                            bool mergeSuccess = TileMerger.MergeTiles(tile, tempSourceTile);
+                            Debug.Log($"BoardManager: Merge result: {(mergeSuccess ? "SUCCESS" : "FAILED")}");
+                            Debug.Log($"BoardManager: After merge, lastMergedCellPosition is {lastMergedCellPosition}");
+                            
+                            if (mergeSuccess)
+                            {
+                                TileAnimator animator = tile.GetComponent<TileAnimator>();
+                                if (animator != null)
+                                {
+                                    animator.PlayMergeAnimation();
+                                }
                             }
                         }));
 
                         GameManager.Instance.EndTurn();
                         return;
                     }
+                    else
+                    {
+                        Debug.Log("BoardManager: Colors don't match, cannot merge");
+                    }
+                }
+                else
+                {
+                    Debug.Log("BoardManager: Invalid direction or distance for merge");
                 }
             }
 
-            if (selectedTile != null)
-            {
-                ClearHighlights();
-            }
-
+            // Select this tile
+            Debug.Log($"BoardManager: Selecting tile at {gridPosition}");
             selectedTile = tile;
             selectedTilePosition = gridPosition;
+            tile.SetState(Tile.TileState.Selected);
+            
+            // Highlight valid moves
             HighlightValidMoves(gridPosition, tile.number);
         }
         else if (selectedTile != null)
         {
+            Debug.Log($"BoardManager: Handling move confirmation to empty cell at {gridPosition}");
             HandleTileMoveConfirmation(gridPosition);
+        }
+    }
+
+    private void HighlightMergeableTiles(Tile selectedTile)
+    {
+        ClearHighlights();
+
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                Vector2Int targetPosition = new Vector2Int(x, y);
+                Tile targetTile = GetTileAtPosition(targetPosition);
+
+                if (targetTile != null && targetTile != selectedTile)
+                {
+                    // Check if the tiles can merge based on color and distance
+                    Vector2Int selectedPosition = selectedTilePosition;
+                    Vector2Int direction = targetPosition - selectedPosition;
+                    int distance = Mathf.Abs(direction.x) + Mathf.Abs(direction.y);
+
+                    if (CompareColors(selectedTile.tileColor, targetTile.tileColor) && distance <= selectedTile.number)
+                    {
+                        HighlightCell(targetPosition);
+                    }
+                }
+            }
         }
     }
 
@@ -577,6 +633,8 @@ public class BoardManager : MonoBehaviour
     public void HighlightValidMoves(Vector2Int startPosition, int maxSteps)
     {
         ClearHighlights();
+        
+        // First highlight valid movement cells
         Vector2Int[] directions = new Vector2Int[] { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
         foreach (Vector2Int direction in directions)
         {
@@ -584,13 +642,27 @@ public class BoardManager : MonoBehaviour
             {
                 Vector2Int targetPosition = startPosition + direction * step;
                 if (!IsWithinBounds(targetPosition)) break;
-                if (IsCellOccupied(targetPosition)) break; // Stop highlighting if tile found
-                HighlightCell(targetPosition);
+                if (IsCellOccupied(targetPosition)) 
+                {
+                    // Found a tile - check if it can be merged
+                    Tile targetTile = GetTileAtPosition(targetPosition);
+                    Tile sourceTile = GetTileAtPosition(startPosition);
+                    
+                    if (targetTile != null && sourceTile != null && 
+                        CompareColors(sourceTile.tileColor, targetTile.tileColor))
+                    {
+                        // Highlight as merge target
+                        HighlightCellAsMergeTarget(targetPosition);
+                    }
+                    break; // Stop highlighting in this direction
+                }
+                // Highlight as move target
+                HighlightCellAsMoveTarget(targetPosition);
             }
         }
     }
 
-    private void HighlightCell(Vector2Int position)
+    private void HighlightCellAsMoveTarget(Vector2Int position)
     {
         GameObject cellIndicator = Instantiate(cellIndicatorPrefab, GetWorldPosition(position), Quaternion.identity, transform);
         cellIndicator.tag = "Highlight";
@@ -598,7 +670,7 @@ public class BoardManager : MonoBehaviour
         SpriteRenderer highlightRenderer = cellIndicator.GetComponent<SpriteRenderer>();
         if (highlightRenderer != null)
         {
-            // Use a more attractive highlight color with gentle gradient
+            // Use a blue highlight color for movement
             highlightRenderer.color = new Color(0.4f, 0.8f, 1f, 0.6f);
             highlightRenderer.material = new Material(Shader.Find("Sprites/Default"));
             highlightRenderer.material.SetColor("_Color", highlightRenderer.color);
@@ -613,6 +685,39 @@ public class BoardManager : MonoBehaviour
                 
             // Animate the opacity for better visibility
             LeanTween.alpha(cellIndicator, 0.4f, 0.8f)
+                .setEaseInOutSine()
+                .setLoopPingPong();
+        }
+    }
+
+    private void HighlightCellAsMergeTarget(Vector2Int position)
+    {
+        GameObject cellIndicator = Instantiate(cellIndicatorPrefab, GetWorldPosition(position), Quaternion.identity, transform);
+        cellIndicator.tag = "Highlight";
+        
+        SpriteRenderer highlightRenderer = cellIndicator.GetComponent<SpriteRenderer>();
+        if (highlightRenderer != null)
+        {
+            // Use a golden/orange highlight color for merge targets
+            highlightRenderer.color = new Color(1f, 0.7f, 0.2f, 0.7f);
+            highlightRenderer.material = new Material(Shader.Find("Sprites/Default"));
+            highlightRenderer.material.SetColor("_Color", highlightRenderer.color);
+            
+            // Make it slightly larger and with more distinct animation for merge targets
+            cellIndicator.transform.localScale = new Vector3(cellSize * 0.95f, cellSize * 0.95f, 1f);
+            
+            // Add more dynamic pulsing animation for merge targets
+            LeanTween.scale(cellIndicator, new Vector3(cellSize * 1.05f, cellSize * 1.05f, 1f), 0.4f)
+                .setEaseInOutSine()
+                .setLoopPingPong();
+                
+            // More vibrant opacity animation for merge targets
+            LeanTween.alpha(cellIndicator, 0.9f, 0.6f)
+                .setEaseInOutSine()
+                .setLoopPingPong();
+                
+            // Add a rotation effect for extra emphasis
+            LeanTween.rotateZ(cellIndicator, 10f, 1.5f)
                 .setEaseInOutSine()
                 .setLoopPingPong();
         }
@@ -1060,5 +1165,46 @@ public class BoardManager : MonoBehaviour
 
         Tile targetTile = GetTileAtPosition(position);
         return targetTile == null || CompareColors(tile.tileColor, targetTile.tileColor);
+    }
+
+    // Add this method back since it's still referenced in the code
+    private void HighlightCell(Vector2Int position)
+    {
+        GameObject cellIndicator = Instantiate(cellIndicatorPrefab, GetWorldPosition(position), Quaternion.identity, transform);
+        cellIndicator.tag = "Highlight";
+        
+        SpriteRenderer highlightRenderer = cellIndicator.GetComponent<SpriteRenderer>();
+        if (highlightRenderer != null)
+        {
+            // Use a general highlight color (between move and merge colors)
+            highlightRenderer.color = new Color(0.7f, 0.7f, 1f, 0.6f);
+            highlightRenderer.material = new Material(Shader.Find("Sprites/Default"));
+            highlightRenderer.material.SetColor("_Color", highlightRenderer.color);
+            
+            // Make it slightly smaller than the cell to create a nice border effect
+            cellIndicator.transform.localScale = new Vector3(cellSize * 0.9f, cellSize * 0.9f, 1f);
+            
+            // Add pulsing animation for the highlight
+            LeanTween.scale(cellIndicator, new Vector3(cellSize * 0.95f, cellSize * 0.95f, 1f), 0.6f)
+                .setEaseInOutSine()
+                .setLoopPingPong();
+                
+            // Animate the opacity for better visibility
+            LeanTween.alpha(cellIndicator, 0.4f, 0.8f)
+                .setEaseInOutSine()
+                .setLoopPingPong();
+        }
+    }
+
+    /// <summary>
+    /// Adds a position to the emptyCells collection when a tile is destroyed
+    /// </summary>
+    public void AddToEmptyCells(Vector2Int position)
+    {
+        if (IsWithinBounds(position) && !emptyCells.Contains(position))
+        {
+            emptyCells.Add(position);
+            Debug.Log($"BoardManager: Position {position} added to emptyCells collection");
+        }
     }
 }
