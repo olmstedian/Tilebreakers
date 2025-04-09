@@ -7,7 +7,7 @@ public class GameManager : MonoBehaviour
     public static GameManager Instance;
 
     [SerializeField] private GameObject gameStateManagerPrefab;
-    [SerializeField] private GameObject specialTileUIPrefab; // Keep this for UI
+    // Remove the specialTileUIPrefab reference
     [SerializeField] private GameObject gameOverManagerPrefab; // Add a reference to the GameOverManager prefab
     [SerializeField] private GameObject gridManagerPrefab;
 
@@ -59,12 +59,7 @@ public class GameManager : MonoBehaviour
 
         GameStateManager.Instance?.SetState(new BootState());
 
-        // Initialize SpecialTileUI
-        if (specialTileUIPrefab != null)
-        {
-            GameObject specialTileUI = Instantiate(specialTileUIPrefab);
-            specialTileUI.SetActive(false); // Ensure the prefab is not visible in the scene
-        }
+        // Remove initialization of SpecialTileUI
 
         // Load the first level using LevelManager
         if (LevelManager.Instance != null)
@@ -102,6 +97,16 @@ public class GameManager : MonoBehaviour
 
     public void SpawnSpecialTile(Vector2Int position, string abilityName)
     {
+        // Allow passing "Random" to use the weighted random selection
+        if (string.IsNullOrEmpty(abilityName) || abilityName == "Blaster")
+        {
+            if (Constants.TESTING_MODE && Random.value < 0.5f)
+            {
+                abilityName = "Doubler";
+                Debug.Log("GameManager: Testing mode forced a Doubler tile to spawn instead of Blaster.");
+            }
+        }
+        
         Debug.Log($"GameManager: Spawning special tile '{abilityName}' at position {position}");
         GameStateManager.Instance?.SetState(new SpecialTileSpawningState(position, abilityName));
     }

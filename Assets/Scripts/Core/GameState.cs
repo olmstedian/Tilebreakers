@@ -511,3 +511,110 @@ public class SpecialTileSpawningState : GameState
     }
 }
 
+/// <summary>
+/// Level complete state - shows level complete UI and prepares for the next level.
+/// </summary>
+public class LevelCompleteState : GameState
+{
+    private int nextLevelIndex;
+    
+    public LevelCompleteState(int nextLevelIndex)
+    {
+        this.nextLevelIndex = nextLevelIndex;
+    }
+    
+    public override void Enter()
+    {
+        Debug.Log($"LevelCompleteState: Level complete! Next level: {nextLevelIndex}");
+        
+        // Display level complete screen
+        UIManager.Instance.ShowLevelCompleteScreen(ScoreManager.Instance.GetCurrentScore());
+        
+        // Play success sound
+        AudioManager.Instance?.PlayLevelCompleteSound();
+    }
+
+    public override void Update() { }
+
+    public override void HandleInput(Vector2Int gridPosition)
+    {
+        // Progress to the next level when player taps
+        LoadNextLevel();
+    }
+
+    public override void Exit()
+    {
+        Debug.Log("LevelCompleteState: Proceeding to next level.");
+        UIManager.Instance.HideLevelCompleteScreen();
+    }
+    
+    private void LoadNextLevel()
+    {
+        if (LevelManager.Instance != null)
+        {
+            LevelManager.Instance.LoadLevel(nextLevelIndex);
+            GameStateManager.Instance.SetState(new WaitingForInputState());
+        }
+        else
+        {
+            GameStateManager.Instance.RestartGame();
+        }
+    }
+}
+
+/// <summary>
+/// Level failed state - shows level failed UI and allows restarting or returning to menu.
+/// </summary>
+public class LevelFailedState : GameState
+{
+    public override void Enter()
+    {
+        Debug.Log("LevelFailedState: Level failed!");
+        UIManager.Instance.ShowLevelFailedScreen(ScoreManager.Instance.GetCurrentScore());
+        
+        // Play level failed sound
+        AudioManager.Instance?.PlayLevelFailedSound();
+    }
+
+    public override void Update() { }
+
+    public override void HandleInput(Vector2Int gridPosition)
+    {
+        // Do nothing - let the UI buttons handle actions
+    }
+
+    public override void Exit()
+    {
+        Debug.Log("LevelFailedState: Exiting level failed state.");
+        UIManager.Instance.HideLevelFailedScreen();
+    }
+}
+
+/// <summary>
+/// Game complete state - the player has finished all levels.
+/// </summary>
+public class GameCompleteState : GameState
+{
+    public override void Enter()
+    {
+        Debug.Log("GameCompleteState: Game complete! All levels finished.");
+        UIManager.Instance.ShowGameCompleteScreen(ScoreManager.Instance.GetCurrentScore());
+        
+        // Play game complete fanfare
+        AudioManager.Instance?.PlayGameCompleteSound();
+    }
+
+    public override void Update() { }
+
+    public override void HandleInput(Vector2Int gridPosition)
+    {
+        // Do nothing - let the UI buttons handle actions
+    }
+
+    public override void Exit()
+    {
+        Debug.Log("GameCompleteState: Exiting game complete state.");
+        UIManager.Instance.HideGameCompleteScreen();
+    }
+}
+

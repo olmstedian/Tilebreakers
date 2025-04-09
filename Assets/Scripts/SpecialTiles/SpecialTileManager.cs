@@ -70,7 +70,7 @@ public class SpecialTileManager : MonoBehaviour
         if (activeSpecialTiles.Contains(specialTile))
         {
             activeSpecialTiles.Remove(specialTile);
-            BoardManager.Instance.UnregisterSpecialTile(specialTile); // Unregister the special tile
+            // Remove reference to BoardManager.UnregisterSpecialTile as it doesn't exist
             Debug.Log($"SpecialTileManager: Unregistered special tile '{specialTile.specialAbilityName}'.");
         }
     }
@@ -80,16 +80,39 @@ public class SpecialTileManager : MonoBehaviour
     /// </summary>
     public void SpawnSpecialTile(Vector2Int position, string abilityName)
     {
+        // If no specific ability name is provided, get a weighted random one
+        if (string.IsNullOrEmpty(abilityName) || abilityName == "Random")
+        {
+            abilityName = GetWeightedRandomCommonSpecialTile();
+        }
+
         Debug.Log($"SpecialTileManager: Attempting to spawn special tile '{abilityName}' at {position}.");
 
-        if (!BoardManager.Instance.IsWithinBounds(position) || !BoardManager.Instance.IsCellEmpty(position))
+        // Multi-layer validation to ensure the position is valid and empty
+        if (!ValidateSpawnPosition(position, out Vector2Int validPosition))
         {
-            Debug.LogWarning($"SpecialTileManager: Cannot spawn special tile '{abilityName}' at {position}. Position is invalid or occupied. Finding alternative position...");
-            position = FindAlternativePosition(position) ?? position;
+            Debug.LogError($"SpecialTileManager: Failed to find valid position for special tile '{abilityName}'. Aborting spawn.");
+            return;
+        }
+        
+        position = validPosition;
 
-            if (!BoardManager.Instance.IsCellEmpty(position))
+        // Final safety check - is the cell STILL empty?
+        if (!global::BoardManager.Instance.IsCellEmpty(position))
+        {
+            Debug.LogError($"SpecialTileManager: CRITICAL VALIDATION FAILURE - Cell at {position} is STILL occupied after all validation. Cannot spawn special tile.");
+            return;
+        }
+
+        // Extra check - are there any existing special tiles at this position?
+        foreach (var existingTile in activeSpecialTiles)
+        {
+            if (existingTile == null) continue;
+            
+            Vector2Int existingPos = BoardManager.Instance.GetGridPositionFromWorldPosition(existingTile.transform.position);
+            if (existingPos == position)
             {
-                Debug.LogError($"SpecialTileManager: No valid position found to spawn special tile '{abilityName}'.");
+                Debug.LogError($"SpecialTileManager: Found another special tile '{existingTile.specialAbilityName}' already at position {position}. Aborting spawn.");
                 return;
             }
         }
@@ -97,12 +120,26 @@ public class SpecialTileManager : MonoBehaviour
         if (specialTilePrefabMap.TryGetValue(abilityName, out SpecialTile prefab))
         {
             Vector2 worldPosition = BoardManager.Instance.GetWorldPosition(position);
+            
+            // Check if there's already something at the world position
+            Collider2D[] colliders = Physics2D.OverlapCircleAll(worldPosition, 0.1f);
+            if (colliders.Length > 0)
+            {
+                Debug.LogError($"SpecialTileManager: Physical collision detected at {worldPosition}! Found {colliders.Length} colliders. Aborting spawn.");
+                foreach (var collider in colliders)
+                {
+                    Debug.LogError($"  - Collider: {collider.name} on GameObject: {collider.gameObject.name}");
+                }
+                return;
+            }
+            
             SpecialTile specialTile = Instantiate(prefab, worldPosition, Quaternion.identity, BoardManager.Instance.transform);
             activeSpecialTiles.Add(specialTile);
             BoardManager.Instance.MarkCellAsOccupied(position);
-            BoardManager.Instance.RegisterSpecialTile(specialTile);
+            // Instead of calling BoardManager.RegisterSpecialTile, simply update local state
+            RegisterSpecialTile(specialTile);
 
-            Debug.Log($"SpecialTileManager: Spawned special tile '{abilityName}' at {position}.");
+            Debug.Log($"SpecialTileManager: Successfully spawned special tile '{abilityName}' at {position}.");
         }
         else
         {
@@ -111,16 +148,195 @@ public class SpecialTileManager : MonoBehaviour
     }
 
     /// <summary>
+    /// Validates a spawn position and finds an alternative if needed.
+    /// </summary>
+    /// <param name="position">The original position to try</param>
+    /// <param name="validPosition">The output valid position (original or alternative)</param>
+    /// <returns>True if a valid position was found, false otherwise</returns>
+    private bool ValidateSpawnPosition(Vector2Int position, out Vector2Int validPosition)
+    {
+        validPosition = position;
+        
+        // Check bounds and emptiness
+        if (!BoardManager.Instance.IsWithinBounds(position) || !global::BoardManager.Instance.IsCellEmpty(position))
+        {
+            Debug.LogWarning($"SpecialTileManager: Position {position} is invalid or occupied. Searching for alternative...");
+            
+            // Try to find an alternative
+            Vector2Int? alternativePos = FindTrueEmptyPosition(position);
+            if (!alternativePos.HasValue)
+            {
+                Debug.LogError("SpecialTileManager: No valid alternative position found anywhere on the board.");
+                return false;
+            }
+            
+            validPosition = alternativePos.Value;
+        }
+        
+        // Double-check this position
+        if (!BoardManager.Instance.IsWithinBounds(validPosition))
+        {
+            Debug.LogError($"SpecialTileManager: Position {validPosition} is out of bounds. This should never happen!");
+            return false;
+        }
+        
+        if (!global::BoardManager.Instance.IsCellEmpty(validPosition))
+        {
+            Debug.LogError($"SpecialTileManager: Position {validPosition} is occupied despite validation! Tile there: {BoardManager.Instance.GetTileAtPosition(validPosition)?.number.ToString() ?? "none"}");
+            
+            // Check for special tiles too
+            SpecialTile existingTile = GetSpecialTileAtPosition(validPosition);
+            if (existingTile != null)
+            {
+                Debug.LogError($"SpecialTileManager: Found existing special tile '{existingTile.specialAbilityName}' at {validPosition}");
+            }
+            
+            return false;
+        }
+        
+        // Check against all active special tiles (for redundancy)
+        foreach (var tile in activeSpecialTiles)
+        {
+            if (tile == null) continue;
+            
+            Vector2Int tilePos = BoardManager.Instance.GetGridPositionFromWorldPosition(tile.transform.position);
+            if (tilePos == validPosition)
+            {
+                Debug.LogError($"SpecialTileManager: Position {validPosition} already has special tile '{tile.specialAbilityName}'. Finding another position...");
+                
+                // Try again with another position
+                Vector2Int? newAlternativePos = FindTrueEmptyPosition(validPosition, true); // true = exclude existing special tile positions
+                if (!newAlternativePos.HasValue)
+                {
+                    return false;
+                }
+                
+                validPosition = newAlternativePos.Value;
+                break;
+            }
+        }
+        
+        Debug.Log($"SpecialTileManager: Position {validPosition} validated as empty and within bounds.");
+        return true;
+    }
+
+    /// <summary>
+    /// Finds a truly empty position that has no special tiles or regular tiles
+    /// </summary>
+    private Vector2Int? FindTrueEmptyPosition(Vector2Int startPosition, bool avoidExistingSpecialTiles = false)
+    {
+        // First check adjacent positions
+        Vector2Int[] directions = new Vector2Int[]
+        {
+            Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left,
+            new Vector2Int(1, 1), new Vector2Int(1, -1), new Vector2Int(-1, -1), new Vector2Int(-1, 1)
+        };
+        
+        // Check immediate neighbors first
+        foreach (Vector2Int dir in directions)
+        {
+            Vector2Int pos = startPosition + dir;
+            bool emptyCheck1 = global::BoardManager.Instance.IsCellEmpty(pos); // resolved ambiguity
+            if (IsTrulyEmpty(pos, avoidExistingSpecialTiles))
+            {
+                return pos;
+            }
+        }
+        
+        // Next try a spiral search pattern for nearby positions
+        for (int radius = 2; radius <= 5; radius++)
+        {
+            for (int x = -radius; x <= radius; x++)
+            {
+                for (int y = -radius; y <= radius; y++)
+                {
+                    // Only check positions on the perimeter
+                    if (Mathf.Abs(x) == radius || Mathf.Abs(y) == radius)
+                    {
+                        Vector2Int pos = new Vector2Int(startPosition.x + x, startPosition.y + y);
+                        if (IsTrulyEmpty(pos, avoidExistingSpecialTiles))
+                        {
+                            return pos;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // If needed, check all grid positions
+        for (int x = 0; x < BoardManager.Instance.width; x++)
+        {
+            for (int y = 0; y < BoardManager.Instance.height; y++)
+            {
+                Vector2Int pos = new Vector2Int(x, y);
+                if (IsTrulyEmpty(pos, avoidExistingSpecialTiles))
+                {
+                    return pos;
+                }
+            }
+        }
+        
+        return null; // No position found
+    }
+
+    /// <summary>
+    /// Checks if a position is truly empty (no special tiles, no regular tiles)
+    /// </summary>
+    private bool IsTrulyEmpty(Vector2Int position, bool avoidExistingSpecialTiles = false)
+    {
+        // Basic checks
+        if (!BoardManager.Instance.IsWithinBounds(position)) return false;
+        if (!global::BoardManager.Instance.IsCellEmpty(position)) return false;
+        
+        // Extra check for special tiles if required
+        if (avoidExistingSpecialTiles)
+        {
+            foreach (var tile in activeSpecialTiles)
+            {
+                if (tile == null) continue;
+                
+                Vector2Int tilePos = BoardManager.Instance.GetGridPositionFromWorldPosition(tile.transform.position);
+                if (tilePos == position)
+                {
+                    return false; // Position has a special tile
+                }
+            }
+        }
+        
+        return true;
+    }
+
+    /// <summary>
     /// Spawns a random special tile near a given position, with an increased chance for common tiles.
     /// </summary>
     public void SpawnRandomSpecialTile(Vector2Int splitPosition)
     {
         string selectedTileType = GetWeightedRandomCommonSpecialTile();
-        Vector2Int? spawnPosition = FindRandomEmptyCellNear(splitPosition);
-        if (spawnPosition.HasValue)
+        
+        // Force Doubler in test mode 50% of the time
+        if (Constants.TESTING_MODE && Random.value < 0.5f)
         {
-            SpawnSpecialTile(spawnPosition.Value, selectedTileType);
+            selectedTileType = "Doubler";
+            Debug.Log("SpecialTileManager: Testing mode forced a Doubler tile to spawn.");
         }
+        
+        // Validate the position before spawning
+        if (!ValidateSpawnPosition(splitPosition, out Vector2Int validPosition))
+        {
+            // Try to find a nearby position
+            Vector2Int? nearbyPosition = FindRandomEmptyCellNear(splitPosition);
+            
+            if (!nearbyPosition.HasValue)
+            {
+                Debug.LogWarning("SpecialTileManager: Could not find any valid empty cell for special tile.");
+                return;
+            }
+            
+            validPosition = nearbyPosition.Value;
+        }
+        
+        Debug.Log($"SpecialTileManager: Spawning {selectedTileType} at validated position {validPosition}");
+        SpawnSpecialTile(validPosition, selectedTileType);
     }
 
     /// <summary>
@@ -128,8 +344,41 @@ public class SpecialTileManager : MonoBehaviour
     /// </summary>
     private string GetWeightedRandomCommonSpecialTile()
     {
-        string[] commonSpecialTiles = { "Blaster", "Freeze", "Doubler", "Painter" };
-        float[] weights = { 0.2f, 0.2f, 0.2f, 0.4f }; // Increase weight for PainterTile
+        string[] specialTileTypes = { "Blaster", "Freeze", "Doubler", "Painter" };
+        
+        // Handle empty array case
+        if (specialTileTypes.Length == 0)
+        {
+            Debug.LogError("SpecialTileManager: No special tile types defined!");
+            return "Doubler"; // Ultimate fallback
+        }
+        
+        // Default to first tile type as fallback
+        string selectedTile = specialTileTypes[0];
+        
+        // Use testing weights if in testing mode
+        float[] weights;
+        if (Constants.TESTING_MODE)
+        {
+            weights = new float[] { 
+                Constants.BLASTER_WEIGHT,
+                Constants.FREEZE_WEIGHT,
+                Constants.DOUBLER_WEIGHT, // Higher weight for Doubler during testing
+                Constants.PAINTER_WEIGHT
+            };
+            Debug.Log("SpecialTileManager: Using testing mode weights for special tiles. Doubler has higher chance.");
+        }
+        else
+        {
+            weights = new float[] { 0.25f, 0.25f, 0.25f, 0.25f }; // Equal weights by default
+        }
+        
+        // Make sure weights array matches the specialTileTypes array length
+        if (weights.Length != specialTileTypes.Length)
+        {
+            Debug.LogWarning($"SpecialTileManager: Weights array length ({weights.Length}) doesn't match tile types array length ({specialTileTypes.Length}). Using first available tile type.");
+            return selectedTile;
+        }
 
         float totalWeight = 0f;
         foreach (float weight in weights)
@@ -137,19 +386,30 @@ public class SpecialTileManager : MonoBehaviour
             totalWeight += weight;
         }
 
+        // If total weight is zero or very small, return the default tile
+        if (totalWeight <= Mathf.Epsilon)
+        {
+            Debug.LogWarning("SpecialTileManager: Total weight is zero, using first tile type.");
+            return selectedTile;
+        }
+
+        // Try weighted random selection
         float randomValue = Random.value * totalWeight;
         float cumulativeWeight = 0f;
-
-        for (int i = 0; i < commonSpecialTiles.Length; i++)
+        
+        for (int i = 0; i < specialTileTypes.Length; i++)
         {
             cumulativeWeight += weights[i];
             if (randomValue <= cumulativeWeight)
             {
-                return commonSpecialTiles[i];
+                selectedTile = specialTileTypes[i];
+                Debug.Log($"SpecialTileManager: Selected {selectedTile} tile to spawn based on weight.");
+                break; // Use break instead of return so we reach the end of the method
             }
         }
-
-        return commonSpecialTiles[0]; // Fallback to the first tile
+        
+        // This line is now properly reachable since we use break above instead of return
+        return selectedTile;
     }
 
     /// <summary>
@@ -179,7 +439,8 @@ public class SpecialTileManager : MonoBehaviour
         foreach (Vector2Int direction in directions)
         {
             Vector2Int newPosition = origin + direction;
-            if (BoardManager.Instance.IsWithinBounds(newPosition) && BoardManager.Instance.IsCellEmpty(newPosition))
+            bool emptyCheck2 = global::BoardManager.Instance.IsCellEmpty(newPosition); // resolved ambiguity
+            if (BoardManager.Instance.IsWithinBounds(newPosition) && global::BoardManager.Instance.IsCellEmpty(newPosition))
             {
                 nearbyPositions.Add(newPosition);
             }
@@ -216,22 +477,67 @@ public class SpecialTileManager : MonoBehaviour
     /// </summary>
     private Vector2Int? FindAlternativePosition(Vector2Int originalPosition)
     {
-        foreach (Vector2Int direction in DirectionUtils.Orthogonal)
+        // First try adjacent positions (starting with orthogonal, then diagonal)
+        Vector2Int[] directions = new Vector2Int[]
         {
-            Vector2Int newPosition = originalPosition + direction;
-            if (BoardManager.Instance.IsWithinBounds(newPosition) && BoardManager.Instance.IsCellEmpty(newPosition))
+            Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left,
+            new Vector2Int(1, 1), new Vector2Int(1, -1), new Vector2Int(-1, -1), new Vector2Int(-1, 1)
+        };
+        
+        // Check immediate neighbors first
+        foreach (Vector2Int dir in directions)
+        {
+            Vector2Int newPos = originalPosition + dir;
+            var status = global::BoardManager.Instance.IsCellEmpty(newPos); // resolved ambiguity
+            if (BoardManager.Instance.IsWithinBounds(newPos) && global::BoardManager.Instance.IsCellEmpty(newPos))
             {
-                return newPosition;
+                Debug.Log($"SpecialTileManager: Found empty adjacent cell at {newPos}");
+                return newPos;
+            }
+        }
+        
+        // Next, check cells with Manhattan distance 2
+        foreach (Vector2Int dir1 in directions.Take(4)) // Use only orthogonal directions
+        {
+            Vector2Int newPos = originalPosition + dir1 * 2;
+            if (BoardManager.Instance.IsWithinBounds(newPos) && global::BoardManager.Instance.IsCellEmpty(newPos))
+            {
+                return newPos;
             }
         }
 
-        // If no orthogonal positions are available, check the entire board
-        foreach (Vector2Int position in BoardManager.Instance.GetAllEmptyCells())
+        // If none of the nearby cells work, try any empty cell on the board
+        // Instead of using GetAllEmptyCells(), use emptyCells directly
+        var emptyCells = GetAllEmptyCellsFromBoard();
+        if (emptyCells.Count > 0)
         {
-            return position; // Return the first available empty cell
+            return emptyCells.First(); // Return the first empty cell found
         }
 
         return null; // No valid position found
+    }
+
+    /// <summary>
+    /// Gets all empty cells from the board by checking each position.
+    /// </summary>
+    private List<Vector2Int> GetAllEmptyCellsFromBoard()
+    {
+        List<Vector2Int> emptyPositions = new List<Vector2Int>();
+        
+        for (int x = 0; x < BoardManager.Instance.width; x++)
+        {
+            for (int y = 0; y < BoardManager.Instance.height; y++)
+            {
+                Vector2Int pos = new Vector2Int(x, y);
+                bool check1 = global::BoardManager.Instance.IsCellEmpty(pos); // resolved ambiguity
+                if (global::BoardManager.Instance.IsCellEmpty(pos))
+                {
+                    emptyPositions.Add(pos);
+                }
+            }
+        }
+        
+        return emptyPositions;
     }
 
     /// <summary>

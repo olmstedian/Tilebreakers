@@ -1,38 +1,40 @@
 # Tilebreakers
 
-## Overview
-Tilebreakers is a tile-matching puzzle game where players merge and manipulate tiles on a grid. The game combines elements of classic puzzle games with strategic gameplay, requiring players to plan their moves carefully to maximize their score.
+A strategic board game where players match and merge colorful tiles to earn points.
 
-## Features
-- **Tile Merging**: Merge tiles of the same color to increase their value
-- **Move Mechanics**: Move tiles across the grid based on their number value
-- **Visual Highlighting System**: Different highlight colors for movement options (blue) and merge targets (gold)
-- **Special Tiles**: Utilize special tiles with unique abilities:
-  - **Blaster**: Destroys adjacent tiles in a 3x3 area
-  - **Freeze**: Skips the next tile spawn
-  - **Doubler**: Doubles the value of adjacent tiles
-  - **Painter**: Changes the color of adjacent tiles to match
-- **Tile Splitting**: Large-value tiles automatically split into multiple smaller tiles when exceeding a threshold
-- **Level Progression**: Multiple levels with increasing difficulty
-- **Score System**: Earn points by merging and manipulating tiles
+## Gameplay
+
+Move tiles across a grid, merging matching colors to increase their values. The game combines pattern recognition with strategic planning as players try to maximize their score.
+
+Key mechanics:
+- Tiles can only merge with tiles of the same color
+- Movement range is determined by the tile's number
+- Merge tiles to increase their value
+- When a tile's value exceeds the split threshold, it will split into multiple tiles
+
+## Special Tiles
+- **Blaster Tile**: Explodes and removes all adjacent tiles
+- **Freeze Tile**: Skips the next tile spawn turn
+- **Doubler Tile**: Doubles the values of all adjacent tiles
+- **Painter Tile**: Changes adjacent tiles to match its color
+
+Special tiles introduce strategic elements and add variety to gameplay with unique abilities.
 
 ## How to Play
-1. Select a tile to see possible moves highlighted in blue and possible merges highlighted in gold
-2. Move tiles to empty spaces or merge with same-color tiles
-3. Plan strategically to create high-value merges and utilize special tiles
-4. Progress through levels by reaching the target score
+1. Click on a tile to select it
+2. Click on a valid destination to move or merge
+3. Special tiles can be activated by clicking on them
+4. Manage your board carefully to avoid running out of moves
 
-## Controls
-- **Mouse/Touch**: Click/tap to select a tile, then click/tap again to move or merge
-- **Special Tiles**: Click directly on special tiles to activate their abilities
+## Features
+- Dynamic grid-based board
+- Colorful tile graphics with visual effects
+- Score tracking with combo multipliers
+- Multiple special tile types with unique abilities
+- Level progression system
 
 ## Development
-This game is developed in Unity and uses a state-based architecture for game flow management. The project includes a modular design with separate components for:
-- Tile management
-- Board management
-- Game state control
-- Special tile abilities
-- Visual effects and animations
+This project is built in Unity and follows object-oriented design principles with a focus on component-based architecture.
 
 ## Recent Updates
 - Added Painter special tile that changes adjacent tiles to its color
@@ -438,6 +440,38 @@ WaitingForInput → Paused → WaitingForInput
 | `ChallengeComplete`  | Level-based victory |
 | `Reviving`           | Ad-based revive |
 | `VictoryAnimation`   | Extra feedback after winning |
+
+---
+
+## Project Audit: Step-by-Step Overview
+
+1. **Project Structure & Architecture**  
+   - Review the folder layout (Core, UI, Tiles, SpecialTiles, Visual, etc.).  
+   - Confirm that key managers—BoardManager, GameStateManager, LevelManager, GameManager—are singletons and correctly instantiated.
+
+2. **Game Flow & States**  
+   - Audit the GameState subclasses (BootState, MainMenuState, WaitingForInputState, etc.) to ensure smooth transitions.  
+   - Verify that delayed transitions and state checks (e.g., in GameStateManager) perform as expected.
+
+3. **Board and Tile Management**  
+   - Confirm that BoardManager synchronizes the board array with the emptyCells collection.  
+   - Audit tile operations (Move, Merge, Split, and destruction) to handle edge cases consistently.
+
+4. **Special Tiles & Visual Effects**  
+   - Verify the functionality of special tiles (Blaster, Doubler, Freeze, Painter) and their feedback (sound, particles, animations).  
+   - Cross-check that associated utility functions (e.g., TileDestructionUtility) handle cleanup correctly.
+
+5. **Input & UI Components**  
+   - Check that InputManager captures touch/mouse events and interacts with the GameStateManager to trigger expected responses.  
+   - Review UI updates in UIManager when game state changes (score updates, level transitions, etc.).
+
+6. **Auditing the Logs**  
+   - Validate that debug logs provide sufficient insight into data inconsistencies (e.g., emptyCells sync issues) and state transitions.  
+   - Ensure error logging in critical components (BoardManager, GameOverManager) helps identify runtime issues.
+
+7. **Testing and Improvement Areas**  
+   - List known issues or data discrepancies (from logs) and ensure they are addressed by recent code changes.  
+   - Plan further tests using Unity’s Editor Play Mode and review console logs for warnings or errors.
 
 ---
 

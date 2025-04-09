@@ -18,15 +18,33 @@ public class GameOverManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Checks if the game is over by verifying if the board is full and no valid moves or merges exist.
+    /// Checks if the game is over by verifying if the board is full and no valid moves or merges exist,
+    /// or if the level objectives have been met.
     /// </summary>
     public void CheckGameOver()
     {
+        // First check if level is complete
+        if (LevelManager.Instance != null && LevelManager.Instance.IsLevelComplete())
+        {
+            Debug.Log("GameOverManager: Level objectives met. Transitioning to level complete state.");
+            LevelManager.Instance.CheckLevelCompletion();
+            return;
+        }
+        
+        // Then check for board state (no more valid moves)
         if (IsBoardFull() && !AnyValidMovesOrMergesExist())
         {
             Debug.Log("GameOverManager: No valid moves or merges left. Game over.");
-            GameStateManager.Instance.SetState(new GameOverState());
-            UIManager.Instance.ShowGameOverScreen(ScoreManager.Instance.GetCurrentScore());
+            
+            // Level failed - no more valid moves
+            if (LevelManager.Instance != null)
+            {
+                GameStateManager.Instance.SetState(new LevelFailedState());
+            }
+            else
+            {
+                GameStateManager.Instance.SetState(new GameOverState());
+            }
         }
         else
         {
@@ -48,7 +66,7 @@ public class GameOverManager : MonoBehaviour
 
         for (int x = 0; x < BoardManager.Instance.width; x++)
         {
-            for (int y = 0; y < BoardManager.Instance.height; y++)
+            for (int y = 0; x < BoardManager.Instance.height; y++)
             {
                 if (BoardManager.Instance.GetTileAtPosition(new Vector2Int(x, y)) == null)
                 {

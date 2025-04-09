@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: -6230321109894492896}
   - component: {fileID: -1484487956052575311}
   - component: {fileID: -6489264116497203521}
+  - component: {fileID: 3437053139155717276}
   m_Layer: 0
   m_Name: DoublerTile
   m_TagString: Untagged
@@ -196,6 +197,32 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   specialAbilityName: Doubler
+  activationEffect: {fileID: 8051768972736850038, guid: 90e0290b7bf984c5fa9bebda3f11d7fb, type: 3}
+  effectDuration: 0.5
+  pulseColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
+  pulseFrequency: 1.2
+  tileScale: 1.1
+  activationSound: {fileID: 8300000, guid: 5e4fda6d71d2e40dbbc45604328d1b7d, type: 3}
+  tileDoubleSound: {fileID: 8300000, guid: 89934a308d84c4809813c05c49944a10, type: 3}
+  volume: 0.7
+  useRandomPitch: 1
+  minPitch: 0.95
+  maxPitch: 1.05
+--- !u!114 &3437053139155717276
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2294095823878119490}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9cae51748cf2c4e06a86f7090f6cd2e0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  tileColor: {r: 1, g: 0.8, b: 0.2, a: 1}
+  symbolColor: {r: 1, g: 1, b: 1, a: 1}
+  cornerRadius: 0.15
 --- !u!1 &6106463710966528330
 GameObject:
   m_ObjectHideFlags: 0

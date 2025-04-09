@@ -58,15 +58,31 @@ public class TileMerger : MonoBehaviour
         staticTile.number += movingTile.number;
         Debug.Log($"TileMerger: Merging numbers {originalNumber} + {movingTile.number} = {staticTile.number}");
         
+        // Save original collider state and ensure it's enabled for the merged tile
+        Collider2D staticTileCollider = staticTile.GetComponent<Collider2D>();
+        bool wasColliderEnabled = staticTileCollider != null ? staticTileCollider.enabled : true;
+        
+        // Update visuals and make sure the merged tile remains interactive
         staticTile.UpdateVisuals();
         
-        // Destroy the moving tile
-        Debug.Log("TileMerger: Destroying moving tile");
-        Object.Destroy(movingTile.gameObject);
+        // Re-enable collider if it was disabled during animation
+        if (staticTileCollider != null && !staticTileCollider.enabled && wasColliderEnabled)
+        {
+            Debug.Log("TileMerger: Re-enabling collider on merged tile");
+            staticTileCollider.enabled = true;
+        }
+        
+        // Reset the tile's state to ensure it can be selected again
+        staticTile.SetState(Tile.TileState.Idle);
+        
+        // Store the reference to the GameObject before destruction
+        GameObject movingTileObject = movingTile.gameObject;
 
-        // Update the board state
-        Debug.Log($"TileMerger: Updating board state - clearing cell {movingPos} and setting {staticPos}");
-        BoardManager.Instance.ClearCell(movingPos);
+        // Use the utility to safely destroy the moving tile
+        TileDestructionUtility.DestroyTile(movingTileObject, movingPos);
+
+        // Update the board state for the static tile
+        Debug.Log($"TileMerger: Setting tile at {staticPos}");
         BoardManager.Instance.SetTileAtPosition(staticPos, staticTile);
 
         // Always update the lastMergedCellPosition
@@ -81,7 +97,16 @@ public class TileMerger : MonoBehaviour
         if (Random.value < Constants.SPECIAL_TILE_CHANCE)
         {
             Debug.Log("TileMerger: Triggering special tile spawn via GameManager");
-            GameManager.Instance.SpawnSpecialTile(staticPos, "Blaster"); // Choose a default special tile
+            string specialTileType = "Random"; // Use weighted random selection
+            
+            // During testing, force Doubler tile sometimes
+            if (Constants.TESTING_MODE && Random.value < 0.6f)
+            {
+                specialTileType = "Doubler";
+                Debug.Log("TileMerger: Testing mode forced a Doubler tile spawn.");
+            }
+            
+            GameManager.Instance.SpawnSpecialTile(staticPos, specialTileType);
         }
 
         // Check if we need to split the tile

@@ -74,6 +74,13 @@ public class Tile : MonoBehaviour
 
         // Calculate text color based on tile color brightness
         textColor = CalculateTextColor(tileColor);
+        
+        // Ensure the collider is enabled
+        Collider2D tileCollider = GetComponent<Collider2D>();
+        if (tileCollider != null && !tileCollider.enabled)
+        {
+            tileCollider.enabled = true;
+        }
 
         UpdateVisuals();
         PlaySpawnAnimation();
@@ -133,6 +140,23 @@ public class Tile : MonoBehaviour
         ExitState(CurrentState);
         CurrentState = newState;
         EnterState(CurrentState);
+        
+        // Ensure collider is enabled when changing state
+        Collider2D tileCollider = GetComponent<Collider2D>();
+        if (tileCollider != null && !tileCollider.enabled)
+        {
+            tileCollider.enabled = true;
+        }
+        
+        // Add highlight around the tile when selected
+        if (newState == TileState.Selected)
+        {
+            CreateSelectionHighlight();
+        }
+        else
+        {
+            RemoveSelectionHighlight();
+        }
     }
 
     private void EnterState(TileState state)
@@ -195,6 +219,7 @@ public class Tile : MonoBehaviour
         StopAllCoroutines();
         UpdateVisuals();
         transform.localScale = Vector3.one;
+        CurrentState = TileState.Idle;
         
         // Reset material properties
         if (spriteRenderer != null)
@@ -202,6 +227,16 @@ public class Tile : MonoBehaviour
             propBlock.SetFloat("_GlowIntensity", 0f);
             propBlock.SetColor("_OutlineColor", originalOutlineColor);
             spriteRenderer.SetPropertyBlock(propBlock);
+        }
+        
+        // Remove any selection highlight
+        RemoveSelectionHighlight();
+        
+        // Ensure collider is enabled
+        Collider2D tileCollider = GetComponent<Collider2D>();
+        if (tileCollider != null && !tileCollider.enabled)
+        {
+            tileCollider.enabled = true;
         }
         
         StartCoroutine(SubtleIdleAnimation());
@@ -280,5 +315,42 @@ public class Tile : MonoBehaviour
 
         LeanTween.scale(gameObject, Vector3.one, 0.35f).setEaseOutBack().setOvershoot(1.3f);
         LeanTween.rotateZ(gameObject, 0f, 0.4f).setEaseOutElastic().setDelay(0.15f);
+    }
+    
+    private GameObject selectionHighlight;
+    
+    private void CreateSelectionHighlight()
+    {
+        // Remove any existing highlight first
+        RemoveSelectionHighlight();
+        
+        // Create a new highlight object
+        selectionHighlight = new GameObject("SelectionHighlight");
+        selectionHighlight.transform.SetParent(transform);
+        selectionHighlight.transform.localPosition = Vector3.zero;
+        selectionHighlight.transform.localScale = new Vector3(1.2f, 1.2f, 1f);
+        
+        // Add our identifier component
+        selectionHighlight.AddComponent<SelectionHighlightIdentifier>();
+        
+        // Add a sprite renderer component
+        SpriteRenderer highlightRenderer = selectionHighlight.AddComponent<SpriteRenderer>();
+        highlightRenderer.sprite = spriteRenderer.sprite;
+        highlightRenderer.color = new Color(1f, 1f, 0.5f, 0.5f); // Yellow-ish highlight
+        highlightRenderer.sortingOrder = spriteRenderer.sortingOrder - 1; // Behind the tile
+        
+        // Animate the highlight
+        LeanTween.scale(selectionHighlight, new Vector3(1.3f, 1.3f, 1f), 0.5f).setLoopPingPong().setEaseInOutSine();
+        LeanTween.rotateZ(selectionHighlight, 5f, 1.2f).setLoopPingPong().setEaseInOutSine();
+    }
+    
+    private void RemoveSelectionHighlight()
+    {
+        if (selectionHighlight != null)
+        {
+            LeanTween.cancel(selectionHighlight);
+            Destroy(selectionHighlight);
+            selectionHighlight = null;
+        }
     }
 }

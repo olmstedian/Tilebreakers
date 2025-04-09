@@ -80,6 +80,7 @@ public class InputManager : MonoBehaviour
             if (specialTile != null)
             {
                 Debug.Log($"InputManager: Special tile detected at {gridPosition}. Activating...");
+                // Directly activate the special tile
                 specialTile.Activate();
                 return;
             }

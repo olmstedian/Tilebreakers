@@ -1,29 +1,28 @@
-Shader "Custom/GridCellShader"
+Shader "Custom/GridCell"
 {
     Properties
     {
         _MainTex ("Texture", 2D) = "white" {}
         _Color ("Color", Color) = (1,1,1,1)
-        _GlowColor ("Glow Color", Color) = (0.5,0.5,1,0.2)
-        _GlowIntensity ("Glow Intensity", Range(0, 1)) = 0.2
+        _OutlineColor ("Outline Color", Color) = (0.5,0.5,0.5,1)
+        _OutlineWidth ("Outline Width", Range(0, 0.1)) = 0.02
         _CornerRadius ("Corner Radius", Range(0, 0.5)) = 0.1
-        _BorderWidth ("Border Width", Range(0, 0.1)) = 0.02
-        _BorderColor ("Border Color", Color) = (1,1,1,0.5)
+        _GlowIntensity ("Glow Intensity", Range(0, 1)) = 0.0
+        _GlowColor ("Glow Color", Color) = (1,1,1,1)
     }
-    
     SubShader
     {
         Tags { "Queue"="Transparent" "RenderType"="Transparent" }
         LOD 100
-        
         Blend SrcAlpha OneMinusSrcAlpha
         ZWrite Off
-        
+
         Pass
         {
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
+            
             #include "UnityCG.cginc"
 
             struct appdata
@@ -41,11 +40,11 @@ Shader "Custom/GridCellShader"
             sampler2D _MainTex;
             float4 _MainTex_ST;
             float4 _Color;
-            float4 _GlowColor;
-            float _GlowIntensity;
+            float4 _OutlineColor;
+            float _OutlineWidth;
             float _CornerRadius;
-            float _BorderWidth;
-            float4 _BorderColor;
+            float _GlowIntensity;
+            float4 _GlowColor;
             
             v2f vert (appdata v)
             {
@@ -55,43 +54,44 @@ Shader "Custom/GridCellShader"
                 return o;
             }
             
-            float roundedRectangle(float2 uv, float2 size, float radius)
+            float roundedRectangle(float2 position, float2 size, float radius)
             {
-                // Convert UV from 0-1 to -0.5 to 0.5
-                float2 pos = uv - 0.5;
+                // Adjust UV to be centered (from 0-1 to -0.5 to 0.5)
+                float2 pos = position - 0.5;
                 
-                // Calculate distance from edge
-                float2 edge = abs(pos) - size/2 + radius;
-                float outsideDistance = length(max(edge, 0));
-                float insideDistance = min(max(edge.x, edge.y), 0);
+                // Get distance from edges
+                float2 distFromEdge = abs(pos) - size*0.5 + radius;
+                
+                // Calculate smoothed rectangle
+                float outsideDistance = length(max(distFromEdge, 0.0));
+                float insideDistance = min(max(distFromEdge.x, distFromEdge.y), 0.0);
                 
                 return outsideDistance + insideDistance - radius;
             }
             
             fixed4 frag (v2f i) : SV_Target
             {
-                // Calculate distance to rounded rectangle
-                float distance = roundedRectangle(i.uv, float2(0.9, 0.9), _CornerRadius);
+                // Calculate base shape
+                float2 size = float2(1.0 - _OutlineWidth*2, 1.0 - _OutlineWidth*2);
+                float shape = roundedRectangle(i.uv, size, _CornerRadius);
+                float outline = roundedRectangle(i.uv, float2(1.0, 1.0), _CornerRadius);
                 
-                // Add glow effect
-                float glow = smoothstep(0.05, 0.0, distance) * _GlowIntensity;
+                // Create the cell with outline
+                float alpha = 1.0 - smoothstep(0.0, 0.01, shape);
+                float4 color = lerp(_OutlineColor, _Color, alpha);
                 
-                // Add border
-                float border = smoothstep(_BorderWidth + 0.01, _BorderWidth, abs(distance));
+                // Add glow effect when enabled
+                if (_GlowIntensity > 0.0) {
+                    float glow = 1.0 - smoothstep(0.0, 0.1, outline);
+                    glow *= _GlowIntensity;
+                    color = lerp(color, _GlowColor, glow * 0.7);
+                }
                 
-                // Combine colors
-                fixed4 col = _Color;
-                col = lerp(col, _BorderColor, border);
-                col = lerp(col, _GlowColor, glow);
+                // Apply shape cutout
+                float finalAlpha = 1.0 - smoothstep(0.0, 0.01, outline);
+                color.a *= finalAlpha;
                 
-                // Apply alpha based on distance
-                col.a *= smoothstep(0.01, 0.0, distance);
-                
-                // Add subtle pattern
-                float pattern = frac(sin(dot(i.uv * 20, float2(12.9898, 78.233))) * 43758.5453) * 0.05;
-                col.rgb += pattern;
-                
-                return col;
+                return color;
             }
             ENDCG
         }

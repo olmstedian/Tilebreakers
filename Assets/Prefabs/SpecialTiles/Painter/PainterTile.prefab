@@ -197,6 +197,17 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   specialAbilityName: Painter
+  colorBurstEffect: {fileID: 8051768972736850038, guid: 90e0290b7bf984c5fa9bebda3f11d7fb, type: 3}
+  effectDuration: 0.5
+  pulseColor: {r: 0.5, g: 0.8, b: 1, a: 1}
+  pulseFrequency: 1.3
+  tileScale: 1.1
+  activationSound: {fileID: 8300000, guid: aa396ca87f9294a82988c98bb3561b9b, type: 3}
+  colorChangeSound: {fileID: 8300000, guid: a92489fb718e64619abc217aa19dda74, type: 3}
+  volume: 0.7
+  useRandomPitch: 1
+  minPitch: 0.95
+  maxPitch: 1.05
 --- !u!114 &-7534689249201424347
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -209,6 +220,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ac9f573c6e3174bc895f8d35791c6300, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  tileBaseMaterial: {fileID: 2100000, guid: 343eb3ba5e23d4169b62aa67475cf291, type: 2}
+  tileSelectedMaterial: {fileID: 2100000, guid: 21726900e65fa44fcbd32c31e83bda11, type: 2}
+  cornerRadius: 0.15
+  outlineWidth: 0.05
+  outlineColor: {r: 1, g: 1, b: 1, a: 0.5}
+  glowIntensity: 0.2
+  pulseSpeed: 1.5
   tileColor: {r: 0, g: 0, b: 0, a: 0}
   number: 0
 --- !u!1 &6106463710966528330

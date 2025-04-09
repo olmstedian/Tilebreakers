@@ -76,7 +76,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: 21300000, guid: b9bd205b2667a4d3fa336465899b1e06, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 91c9d2fa9957a4193a355d18cad09f16, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -196,6 +196,16 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   specialAbilityName: Freeze
+  activationEffect: {fileID: 0}
+  effectDuration: 0.5
+  pulseColor: {r: 0.5, g: 0.8, b: 1, a: 1}
+  pulseFrequency: 1.2
+  tileScale: 1.1
+  activationSound: {fileID: 8300000, guid: 19d6451be6c6d4b0eae51e8175c11d85, type: 3}
+  volume: 0.7
+  useRandomPitch: 1
+  minPitch: 0.95
+  maxPitch: 1.05
 --- !u!1 &6106463710966528330
 GameObject:
   m_ObjectHideFlags: 0

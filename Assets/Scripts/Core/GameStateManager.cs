@@ -96,7 +96,29 @@ public class GameStateManager : MonoBehaviour
     {
         BoardManager.Instance?.ClearBoard();
         ScoreManager.Instance?.ResetScore();
-        SetState(new InitGameState());
+        
+        // Use LevelManager if available
+        if (LevelManager.Instance != null)
+        {
+            LevelManager.Instance.RestartCurrentLevel();
+        }
+        else
+        {
+            SetState(new InitGameState());
+        }
+    }
+
+    public void CheckLevelCompletion()
+    {
+        if (LevelManager.Instance != null)
+        {
+            LevelManager.Instance.CheckLevelCompletion();
+        }
+        else
+        {
+            // Default to checking game over
+            SetState(new CheckingGameOverState());
+        }
     }
 
     public void GoToMainMenu()
