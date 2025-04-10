@@ -247,8 +247,23 @@ public class BoardManager : MonoBehaviour
 
     public void MoveTile(Tile tile, Vector2Int startPosition, Vector2Int targetPosition)
     {
-        ClearCell(startPosition);
-        SetTileAtPosition(targetPosition, tile);
+        if (tile == null || !IsWithinBounds(startPosition) || !IsWithinBounds(targetPosition))
+        {
+            Debug.LogError($"BoardManager: Invalid move operation. Tile: {tile}, Start: {startPosition}, Target: {targetPosition}");
+            return;
+        }
+
+        if (tile.hasMerged)
+        {
+            Debug.LogWarning($"BoardManager: Cannot move tile at {startPosition} because it has already merged this turn.");
+            return;
+        }
+
+        ClearCell(startPosition); // Ensure the starting cell is cleared
+        SetTileAtPosition(targetPosition, tile); // Mark the target cell as occupied
+
+        // Log the movement operation
+        Debug.Log($"BoardManager: Moved tile from {startPosition} to {targetPosition}.");
 
         // Disable the tile's collider during movement to prevent collision overlap.
         Collider2D tileCollider = tile.GetComponent<Collider2D>();
@@ -291,30 +306,70 @@ public class BoardManager : MonoBehaviour
             animator.PlayMoveAnimation(GetWorldPosition(targetPosition), Constants.TILE_MOVE_DURATION);
         }
         
-        MarkCellAsOccupied(targetPosition);
+        MarkCellAsOccupied(targetPosition); // Ensure the target cell is removed from emptyCells
     }
 
     private IEnumerator MoveTileAndReenable(Tile tile, Vector2 targetPosition, float duration, Collider2D tileCollider, int originalSortingOrder, SpriteRenderer sr)
     {
-        yield return StartCoroutine(tile.GetComponent<TileMover>().MoveTile(targetPosition, duration));
+        // Set the tile state to Moving before starting animation
+        if (tile != null)
+        {
+            tile.SetState(Tile.TileState.Moving);
+        }
+        
+        IEnumerator movementCoroutine = null;
+        bool completed = false;
+        
+        try
+        {
+            // Store the coroutine reference but don't yield inside the try block
+            movementCoroutine = tile.GetComponent<TileMover>().MoveTile(targetPosition, duration);
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"BoardManager: Error during tile movement animation: {e.Message}");
+            completed = true;
+        }
+        
+        // Yield the coroutine outside the try block if it was created successfully
+        if (movementCoroutine != null && !completed)
+        {
+            yield return StartCoroutine(movementCoroutine);
+        }
+        
+        // After movement completes (or errors), re-enable collider and restore sorting order
+        // This will run even if there's an exception during the animation
         if (tileCollider != null)
         {
             tileCollider.enabled = true;
         }
+        
         if (sr != null)
         {
             sr.sortingOrder = originalSortingOrder;
+        }
+        
+        // Set the tile state back to Idle after animation completes
+        if (tile != null)
+        {
+            tile.SetState(Tile.TileState.Idle);
         }
     }
     
     private IEnumerator MoveTileToTargetForMerge(Tile sourceTile, Tile targetTile, System.Action onComplete)
     {
+        // Track the source position for proper board cleanup
+        Vector2Int sourcePos = GetGridPositionFromWorldPosition(sourceTile.transform.position);
+        
         // Disable collider during animation
         Collider2D tileCollider = sourceTile.GetComponent<Collider2D>();
         if (tileCollider != null)
         {
             tileCollider.enabled = false;
         }
+        
+        // Track the source tile GameObject for later verification
+        GameObject sourceTileObject = sourceTile.gameObject;
         
         // Move the tile to the target position
         TileMover mover = sourceTile.GetComponent<TileMover>();
@@ -327,10 +382,32 @@ public class BoardManager : MonoBehaviour
             sourceTile.transform.position = targetTile.transform.position;
         }
         
+        // Double check that the source cell is cleared properly
+        ClearCell(sourcePos);
+        if (!emptyCells.Contains(sourcePos))
+        {
+            emptyCells.Add(sourcePos);
+        }
+        
         // Execute the callback when movement is complete
         if (onComplete != null)
         {
             onComplete();
+        }
+        
+        // Verify that the source tile was destroyed
+        yield return new WaitForSeconds(0.1f); // Short delay to allow destruction to occur
+        
+        if (sourceTileObject != null)
+        {
+            Debug.LogWarning($"BoardManager: Source tile at {sourcePos} may not have been properly destroyed after merge. Double-checking.");
+            
+            // Check if the GameObject still exists in the scene
+            if (sourceTileObject)
+            {
+                Debug.LogError($"BoardManager: Source tile at {sourcePos} was not destroyed after merge. Destroying it now.");
+                Destroy(sourceTileObject);
+            }
         }
     }
 
@@ -350,10 +427,31 @@ public class BoardManager : MonoBehaviour
 
     public void SetTileAtPosition(Vector2Int position, Tile tile)
     {
+        if (!IsWithinBounds(position))
+        {
+            Debug.LogError($"BoardManager: Attempted to set tile at out-of-bounds position {position}");
+            return;
+        }
+        
         board[position.x, position.y] = tile;
+        
         // Ensure the cell is marked occupied by removing it from emptyCells
         if (emptyCells.Contains(position))
+        {
             emptyCells.Remove(position);
+            Debug.Log($"BoardManager: Position {position} removed from emptyCells during SetTileAtPosition");
+        }
+        
+        // If the tile is not null, make sure it's physically at the correct position
+        if (tile != null && tile.gameObject != null)
+        {
+            Vector2 worldPosition = GetWorldPosition(position);
+            if (Vector2.Distance(tile.transform.position, worldPosition) > 0.1f)
+            {
+                Debug.Log($"BoardManager: Adjusting tile position to match grid position {position}");
+                tile.transform.position = worldPosition;
+            }
+        }
     }
 
     public void ClearCell(Vector2Int position)
@@ -364,21 +462,74 @@ public class BoardManager : MonoBehaviour
             return;
         }
 
-        // Check if there was actually a tile here (for debugging)
-        if (board[position.x, position.y] != null)
+        // Clear the reference in the board array
+        board[position.x, position.y] = null;
+        
+        // Ensure the cell is marked empty by adding it to emptyCells
+        if (!emptyCells.Contains(position))
         {
-            Debug.Log($"BoardManager: Clearing cell at position {position} (had tile with value {board[position.x, position.y].number})");
+            emptyCells.Add(position);
+            Debug.Log($"BoardManager: Position {position} added to emptyCells during ClearCell");
         }
         
-        board[position.x, position.y] = null;
-        // Ensure the cell is marked empty by adding it back to emptyCells
-        if (!emptyCells.Contains(position))
-            emptyCells.Add(position);
+        // Optional: Check for any physical objects that might still be at this position
+        Vector2 worldPos = GetWorldPosition(position);
+        Collider2D[] colliders = Physics2D.OverlapCircleAll(worldPos, 0.4f);
+        foreach (var collider in colliders)
+        {
+            // Ignore certain objects
+            if (collider.isTrigger || collider.gameObject.CompareTag("Highlight"))
+                continue;
+            
+            // If we find a tile component, log a warning
+            if (collider.GetComponent<Tile>() != null)
+            {
+                Debug.LogWarning($"BoardManager: ClearCell called for {position} but found a physical tile still at this position. This may indicate a synchronization issue.");
+            }
+        }
     }
 
     public void MarkCellAsOccupied(Vector2Int position)
     {
-        emptyCells.Remove(position);
+        if (!IsWithinBounds(position))
+        {
+            Debug.LogWarning($"BoardManager: Attempted to mark out-of-bounds position {position} as occupied");
+            return;
+        }
+        
+        if (emptyCells.Contains(position))
+        {
+            emptyCells.Remove(position);
+            Debug.Log($"BoardManager: Position {position} removed from emptyCells in MarkCellAsOccupied");
+        }
+        
+        // Extra verification: ensure the position actually has a tile
+        if (board[position.x, position.y] == null)
+        {
+            // Check if there's a physical tile at this position that should be registered
+            Vector2 worldPos = GetWorldPosition(position);
+            Collider2D[] colliders = Physics2D.OverlapCircleAll(worldPos, 0.4f);
+            
+            foreach (var collider in colliders)
+            {
+                if (!collider.isTrigger && collider.gameObject.CompareTag("Tile"))
+                {
+                    Tile tile = collider.GetComponent<Tile>();
+                    if (tile != null)
+                    {
+                        Debug.LogWarning($"BoardManager: Found physical tile at {position} but board array shows null. Auto-registering tile.");
+                        board[position.x, position.y] = tile;
+                        break;
+                    }
+                }
+            }
+            
+            // If we still don't have a tile, log a warning
+            if (board[position.x, position.y] == null)
+            {
+                Debug.LogWarning($"BoardManager: MarkCellAsOccupied called for {position} but no tile is at this position in the board array.");
+            }
+        }
     }
 
     /// <summary>
@@ -403,12 +554,17 @@ public class BoardManager : MonoBehaviour
         // Ensure the position is marked as occupied
         if (emptyCells.Contains(position))
         {
-            Debug.LogWarning($"BoardManager: Position {position} was incorrectly marked as empty. Fixing...");
+            Debug.LogWarning($"BoardManager: Position {position} was incorrectly marked as empty during re-registration. Fixing...");
             emptyCells.Remove(position);
         }
         
         // Update the tile's position in world space to ensure consistency
-        tile.transform.position = GetWorldPosition(position);
+        Vector2 worldPosition = GetWorldPosition(position);
+        if (Vector2.Distance(tile.transform.position, worldPosition) > 0.1f)
+        {
+            Debug.LogWarning($"BoardManager: Tile at {position} was not at the correct world position. Adjusting position.");
+            tile.transform.position = worldPosition;
+        }
         
         // Call UpdateVisuals to ensure the tile display is updated
         tile.UpdateVisuals();
@@ -603,29 +759,68 @@ public class BoardManager : MonoBehaviour
             return true;
         }
 
-        // If no empty cells, check for mergeable adjacent tiles
+        // If no empty cells, check for mergeable tiles within their movement range
         for (int x = 0; x < width; x++)
         {
             for (int y = 0; y < height; y++)
             {
                 Tile currentTile = GetTileAtPosition(new Vector2Int(x, y));
                 if (currentTile == null) continue;
-
-                // Check adjacent tiles for a valid merge
+                
+                // Get the movement range of this tile (its number value)
+                int moveRange = currentTile.number;
+                Vector2Int currentPos = new Vector2Int(x, y);
+                
+                // Check in each orthogonal direction up to the tile's movement range
                 foreach (Vector2Int dir in DirectionUtils.Orthogonal)
                 {
-                    Vector2Int neighborPos = new Vector2Int(x + dir.x, y + dir.y);
-                    if (IsWithinBounds(neighborPos))
+                    for (int distance = 1; distance <= moveRange; distance++)
                     {
-                        Tile neighborTile = GetTileAtPosition(neighborPos);
-                        if (neighborTile != null && CompareColors(currentTile.tileColor, neighborTile.tileColor))
+                        Vector2Int targetPos = currentPos + dir * distance;
+                        
+                        // Stop checking this direction if we go out of bounds
+                        if (!IsWithinBounds(targetPos)) 
+                            break;
+                        
+                        // Check if there's a tile at this position
+                        Tile targetTile = GetTileAtPosition(targetPos);
+                        
+                        // If we hit a tile along the path...
+                        if (targetTile != null)
                         {
-                            return true; // Found a valid move
+                            // Check if it's the same color (mergeable)
+                            if (CompareColors(currentTile.tileColor, targetTile.tileColor))
+                            {
+                                // Also ensure path is clear up to this tile
+                                if (IsPathClear(currentPos, targetPos))
+                                {
+                                    Debug.Log($"HasValidMove: Found valid merge from {currentPos} to {targetPos} with distance {distance} <= tile number {moveRange}");
+                                    return true; // Found a valid merge move
+                                }
+                            }
+                            
+                            // If this tile is not mergeable or path is blocked, stop checking this direction
+                            break;
+                        }
+                        
+                        // If we found an empty cell that's within range, it's a valid move
+                        // (Note: This check shouldn't be reached because we already checked emptyCells.Count > 0,
+                        // but it's here for completeness)
+                        else 
+                        {
+                            // Check if path is clear to this empty position
+                            if (IsPathClear(currentPos, targetPos))
+                            {
+                                Debug.Log($"HasValidMove: Found valid movement to empty cell at {targetPos} with distance {distance} <= tile number {moveRange}");
+                                return true; // Found a valid move to an empty cell
+                            }
                         }
                     }
                 }
             }
         }
+        
+        Debug.Log("HasValidMove: No valid moves found on the board.");
         return false; // No valid moves found
     }
 
@@ -634,6 +829,8 @@ public class BoardManager : MonoBehaviour
     /// </summary>
     public void ClearSelection()
     {
+        Debug.Log("BoardManager: Clearing tile selection state");
+        
         if (selectedTile != null)
         {
             selectedTile.ClearSelectionState();
@@ -662,151 +859,252 @@ public class BoardManager : MonoBehaviour
         ClearSelectionHighlights(); // This now uses our component-based approach
     }
 
-    private void HandleTileSelection(Vector2Int gridPosition)
+    public void HandleTileSelection(Vector2Int gridPosition)
     {
-        if (GameStateManager.Instance != null && !GameStateManager.Instance.IsInState<WaitingForInputState>())
+        // First, verify that we're in WaitingForInputState
+        if (GameStateManager.Instance == null || !GameStateManager.Instance.IsInState<WaitingForInputState>())
         {
             Debug.Log("BoardManager: HandleTileSelection aborted - not in WaitingForInputState");
             return;
         }
 
         Debug.Log($"BoardManager: HandleTileSelection called for position {gridPosition}");
-        Tile tile = GetTileAtPosition(gridPosition);
-
-        // Verify the tile is valid and has proper components
-        if (tile != null)
+        
+        // First check if this is a special tile and delegate to SpecialTileManager if needed
+        SpecialTile specialTile = SpecialTileManager.Instance?.GetSpecialTileAtPosition(gridPosition);
+        if (specialTile != null)
         {
-            Debug.Log($"BoardManager: Tile found at {gridPosition} with number {tile.number} and color {tile.tileColor}");
+            Debug.Log($"BoardManager: Found special tile '{specialTile.specialAbilityName}' at {gridPosition}. Activating...");
+            specialTile.Activate();
+            return;
+        }
+
+        // Check if we already have a selected tile
+        if (selectedTile != null)
+        {
+            // We have a selected tile, so this click is either selecting another tile or moving to an empty space
+            Tile clickedTile = GetTileAtPosition(gridPosition);
             
-            // Check if the tile's collider is enabled
-            Collider2D tileCollider = tile.GetComponent<Collider2D>();
-            if (tileCollider != null && !tileCollider.enabled)
+            if (clickedTile != null)
             {
-                Debug.LogWarning($"BoardManager: Tile at {gridPosition} has disabled collider. Re-enabling it.");
-                tileCollider.enabled = true;
-            }
-
-            if (selectedTile == tile)
-            {
-                Debug.Log("BoardManager: Deselecting currently selected tile");
-                ClearSelection();
-                return;
-            }
-
-            if (selectedTile != null)
-            {
-                Debug.Log($"BoardManager: Already have selected tile at {selectedTilePosition} with number {selectedTile.number}");
-                
-                // Check if these tiles can merge
-                Vector2Int direction = gridPosition - selectedTilePosition;
-                int distance = Mathf.Abs(direction.x) + Mathf.Abs(direction.y);
-                
-                Debug.Log($"BoardManager: Checking merge - direction: {direction}, distance: {distance}, max distance allowed: {selectedTile.number}");
-                Debug.Log($"BoardManager: Color match: {CompareColors(selectedTile.tileColor, tile.tileColor)}");
-                
-                // Check valid orthogonal direction for merge
-                if ((direction.x == 0 || direction.y == 0) && distance <= selectedTile.number)
+                // Clicking on another tile
+                if (clickedTile == selectedTile)
                 {
-                    if (CompareColors(selectedTile.tileColor, tile.tileColor))
-                    {
-                        Debug.Log("BoardManager: Valid merge detected! Proceeding with merge operation.");
-                        Debug.Log($"BoardManager: Current lastMergedCellPosition is {lastMergedCellPosition}");
-                        
-                        Tile tempSourceTile = selectedTile;
-                        Vector2Int tempSourcePos = selectedTilePosition;
-
-                        ClearAllSelectionState();
-
-                        StartCoroutine(MoveTileToTargetForMerge(tempSourceTile, tile, () =>
-                        {
-                            // Clear the cell on the board array
-                            ClearCell(tempSourcePos);
-                            emptyCells.Add(tempSourcePos);
-
-                            bool mergeSuccess = TileMerger.MergeTiles(tile, tempSourceTile);
-                            Debug.Log($"BoardManager: Merge result: {(mergeSuccess ? "SUCCESS" : "FAILED")}");
-                            Debug.Log($"BoardManager: After merge, lastMergedCellPosition is {lastMergedCellPosition}");
-                            
-                            if (mergeSuccess)
-                            {
-                                // Make sure the resulting merged tile has its collider enabled
-                                Collider2D mergedTileCollider = tile.GetComponent<Collider2D>();
-                                if (mergedTileCollider != null && !mergedTileCollider.enabled)
-                                {
-                                    Debug.Log("BoardManager: Re-enabling collider on merged tile after animation");
-                                    mergedTileCollider.enabled = true;
-                                }
-                                
-                                // Play merge animation
-                                TileAnimator animator = tile.GetComponent<TileAnimator>();
-                                if (animator != null)
-                                {
-                                    animator.PlayMergeAnimation();
-                                }
-                            }
-                        }));
-
-                        GameManager.Instance.EndTurn();
-                        return;
-                    }
-                    else
-                    {
-                        Debug.Log("BoardManager: Colors don't match, cannot merge");
-                    }
+                    // Clicking on the same tile - deselect it
+                    Debug.Log("BoardManager: Deselecting currently selected tile");
+                    ClearSelection();
+                    return;
                 }
                 else
                 {
-                    Debug.Log("BoardManager: Invalid direction or distance for merge");
+                    // Clicking on a different tile - handle potential merge
+                    HandlePotentialMerge(gridPosition, clickedTile);
                 }
             }
+            else
+            {
+                // Clicking on an empty cell - try to move the selected tile there
+                Debug.Log($"BoardManager: Empty cell clicked at {gridPosition}. Attempting move from {selectedTilePosition}.");
+                HandleTileMoveConfirmation(gridPosition);
+            }
+            return;
+        }
 
+        // No tile is currently selected, so try to select the clicked tile
+        Tile tile = GetTileAtPosition(gridPosition);
+        if (tile != null)
+        {
             // Select this tile
-            Debug.Log($"BoardManager: Selecting tile at {gridPosition}");
+            Debug.Log($"BoardManager: Selecting tile at {gridPosition} with number {tile.number} and color {tile.tileColor}");
             selectedTile = tile;
             selectedTilePosition = gridPosition;
             tile.SetState(Tile.TileState.Selected);
             
-            // Create external selection highlight in addition to the tile's own highlight
+            // Create external selection highlight
             CreateSelectionHighlight(gridPosition);
             
             // Highlight valid moves
             HighlightValidMoves(gridPosition, tile.number);
         }
-        else if (selectedTile != null)
+        else
         {
-            Debug.Log($"BoardManager: Handling move confirmation to empty cell at {gridPosition}");
-            HandleTileMoveConfirmation(gridPosition);
+            // Clicked on an empty cell with no selected tile
+            Debug.Log($"BoardManager: Clicked on empty cell at {gridPosition} with no tile selected.");
+            // Clear any lingering selection state just to be safe
+            ClearSelection();
         }
     }
-    
+
+    // Helper method to handle potential merges between tiles
+    private void HandlePotentialMerge(Vector2Int gridPosition, Tile targetTile)
+    {
+        Debug.Log($"BoardManager: Already have selected tile at {selectedTilePosition} with number {selectedTile.number}");
+        
+        // Check if these tiles can merge
+        Vector2Int direction = gridPosition - selectedTilePosition;
+        int distance = Mathf.Abs(direction.x) + Mathf.Abs(direction.y);
+        
+        Debug.Log($"BoardManager: Checking merge - direction: {direction}, distance: {distance}, max distance allowed: {selectedTile.number}");
+        Debug.Log($"BoardManager: Color match: {CompareColors(selectedTile.tileColor, targetTile.tileColor)}");
+        
+        // Check if the target is a special tile (cannot merge with special tiles)
+        if (targetTile.GetComponent<SpecialTile>() != null)
+        {
+            Debug.Log("BoardManager: Target tile is a special tile. Merge is not allowed.");
+            ClearSelection();
+            selectedTile = targetTile;
+            selectedTilePosition = gridPosition;
+            targetTile.SetState(Tile.TileState.Selected);
+            CreateSelectionHighlight(gridPosition);
+            HighlightValidMoves(gridPosition, targetTile.number);
+            return;
+        }
+        
+        // Check valid orthogonal direction for merge
+        bool isValidDirection = direction.x == 0 || direction.y == 0; // Ensure movement is along one axis only
+        bool isWithinRange = distance <= selectedTile.number;         // Ensure distance is within the tile's value
+        bool isSameColor = CompareColors(selectedTile.tileColor, targetTile.tileColor); // Ensure colors match
+        
+        Debug.Log($"BoardManager: Merge validation - Valid direction: {isValidDirection}, Within range: {isWithinRange}, Same color: {isSameColor}");
+        
+        // Merge is only possible if all three conditions are met
+        if (isValidDirection && isWithinRange && isSameColor)
+        {
+            Debug.Log("BoardManager: Valid merge detected! Proceeding with merge operation.");
+            Debug.Log($"BoardManager: Current lastMergedCellPosition is {lastMergedCellPosition}");
+            
+            Tile tempSourceTile = selectedTile;
+            Vector2Int tempSourcePos = selectedTilePosition;
+            
+            ClearAllSelectionState();
+            
+            // Check if there are any obstacles in the merge path
+            bool pathClear = IsPathClear(tempSourcePos, gridPosition);
+            if (!pathClear)
+            {
+                Debug.LogWarning("BoardManager: Merge path is obstructed by other tiles. Cannot merge.");
+                // Reselect the target tile since the original selection was cleared
+                selectedTile = targetTile;
+                selectedTilePosition = gridPosition;
+                targetTile.SetState(Tile.TileState.Selected);
+                CreateSelectionHighlight(gridPosition);
+                HighlightValidMoves(gridPosition, targetTile.number);
+                return;
+            }
+            
+            StartCoroutine(MoveTileToTargetForMerge(tempSourceTile, targetTile, () =>
+            {
+                // Clear the cell on the board array
+                ClearCell(tempSourcePos);
+                emptyCells.Add(tempSourcePos);
+
+                bool mergeSuccess = TileMerger.MergeTiles(targetTile, tempSourceTile);
+                Debug.Log($"BoardManager: Merge result: {(mergeSuccess ? "SUCCESS" : "FAILED")}");
+                Debug.Log($"BoardManager: After merge, lastMergedCellPosition is {lastMergedCellPosition}");
+                
+                if (mergeSuccess)
+                {
+                    // Make sure the resulting merged tile has its collider enabled
+                    Collider2D mergedTileCollider = targetTile.GetComponent<Collider2D>();
+                    if (mergedTileCollider != null && !mergedTileCollider.enabled)
+                    {
+                        Debug.Log("BoardManager: Re-enabling collider on merged tile after animation");
+                        mergedTileCollider.enabled = true;
+                    }
+                    
+                    // Play merge animation
+                    TileAnimator animator = targetTile.GetComponent<TileAnimator>();
+                    if (animator != null)
+                    {
+                        animator.PlayMergeAnimation();
+                    }
+                }
+            }));
+            
+            GameManager.Instance.EndTurn();
+        }
+        else
+        {
+            Debug.Log("BoardManager: Cannot merge - " + 
+                     (!isValidDirection ? "invalid direction (must be orthogonal)" : "") + 
+                     (!isWithinRange ? "distance too great" : "") + 
+                     (!isSameColor ? "colors don't match" : ""));
+                     
+            // Deselect the current tile and select the new one instead
+            ClearSelection();
+            selectedTile = targetTile;
+            selectedTilePosition = gridPosition;
+            targetTile.SetState(Tile.TileState.Selected);
+            CreateSelectionHighlight(gridPosition);
+            HighlightValidMoves(gridPosition, targetTile.number);
+        }
+    }
+
+    // Add this new method to check if there are any tiles obstructing the merge path
+    private bool IsPathClear(Vector2Int startPos, Vector2Int endPos)
+    {
+        // Determine the direction vector
+        Vector2Int direction = new Vector2Int(
+            Mathf.Clamp(endPos.x - startPos.x, -1, 1),
+            Mathf.Clamp(endPos.y - startPos.y, -1, 1)
+        );
+        
+        // Only orthogonal movements are valid for merges
+        if (direction.x != 0 && direction.y != 0)
+        {
+            return false; // Diagonal movement is not allowed
+        }
+        
+        Vector2Int currentPos = startPos + direction; // Skip the starting position
+        
+        // Check all positions along the path except the start and end positions
+        while (currentPos != endPos)
+        {
+            if (IsCellOccupied(currentPos))
+            {
+                Debug.LogWarning($"BoardManager: Path obstructed at {currentPos}");
+                return false;
+            }
+            currentPos += direction;
+        }
+        
+        return true;
+    }
+
     /// <summary>
     /// Creates a visual highlight around a selected tile.
     /// </summary>
     private void CreateSelectionHighlight(Vector2Int position)
     {
+        // Only create highlights when in WaitingForInputState
+        if (GameStateManager.Instance == null || !GameStateManager.Instance.IsInState<WaitingForInputState>())
+        {
+            Debug.Log("BoardManager: CreateSelectionHighlight aborted - not in WaitingForInputState");
+            return;
+        }
+
         GameObject highlight = new GameObject($"Selection_{position.x}_{position.y}");
         // Change the tag to "Highlight" which should already be defined in your project
         highlight.tag = "Highlight";
         highlight.transform.position = GetWorldPosition(position);
         highlight.transform.SetParent(transform);
-        
+
         // Add a component we can use to identify it as a selection highlight
         highlight.AddComponent<SelectionHighlightIdentifier>();
-        
         SpriteRenderer renderer = highlight.AddComponent<SpriteRenderer>();
         renderer.sprite = selectedTile.GetComponent<SpriteRenderer>().sprite;
         renderer.color = new Color(1f, 0.8f, 0.2f, 0.6f); // Golden highlight
         renderer.sortingOrder = -1; // Just behind the tile
-        
+
         // Make the selection larger than the tile
         highlight.transform.localScale = new Vector3(cellSize * 1.2f, cellSize * 1.2f, 1f);
-        
+
         // Animate the selection
         LeanTween.rotateZ(highlight, 360f, 4f).setLoopClamp();
         LeanTween.scale(highlight, new Vector3(cellSize * 1.3f, cellSize * 1.3f, 1f), 0.7f)
                 .setEaseInOutSine()
                 .setLoopPingPong();
-        
+
         // Use a shader for glow effect if available
         if (renderer.material != null && renderer.material.HasProperty("_GlowIntensity"))
         {
@@ -831,21 +1129,26 @@ public class BoardManager : MonoBehaviour
     private void HighlightMergeableTiles(Tile selectedTile)
     {
         ClearHighlights();
-
         for (int x = 0; x < width; x++)
         {
             for (int y = 0; y < height; y++)
             {
                 Vector2Int targetPosition = new Vector2Int(x, y);
                 Tile targetTile = GetTileAtPosition(targetPosition);
-
                 if (targetTile != null && targetTile != selectedTile)
                 {
+                    // Skip special tiles as merge targets (new check)
+                    if (targetTile.GetComponent<SpecialTile>() != null)
+                    {
+                        // Mark special tile as an invalid merge target with a red highlight
+                        HighlightCellAsInvalidTarget(targetPosition);
+                        continue;
+                    }
+                    
                     // Check if the tiles can merge based on color and distance
                     Vector2Int selectedPosition = selectedTilePosition;
                     Vector2Int direction = targetPosition - selectedPosition;
                     int distance = Mathf.Abs(direction.x) + Mathf.Abs(direction.y);
-
                     if (CompareColors(selectedTile.tileColor, targetTile.tileColor) && distance <= selectedTile.number)
                     {
                         HighlightCell(targetPosition);
@@ -866,7 +1169,6 @@ public class BoardManager : MonoBehaviour
     public void HighlightValidMoves(Vector2Int startPosition, int maxSteps)
     {
         ClearHighlights();
-        
         // First highlight valid movement cells
         Vector2Int[] directions = new Vector2Int[] { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
         foreach (Vector2Int direction in directions)
@@ -881,11 +1183,24 @@ public class BoardManager : MonoBehaviour
                     Tile targetTile = GetTileAtPosition(targetPosition);
                     Tile sourceTile = GetTileAtPosition(startPosition);
                     
+                    // Skip special tiles as merge targets
+                    if (targetTile != null && targetTile.GetComponent<SpecialTile>() != null)
+                    {
+                        // Mark this as an invalid target with a red highlight
+                        HighlightCellAsInvalidTarget(targetPosition);
+                        break; // Stop highlighting in this direction
+                    }
+                    
+                    // Highlight if same color (mergeable)
                     if (targetTile != null && sourceTile != null && 
                         CompareColors(sourceTile.tileColor, targetTile.tileColor))
                     {
                         // Highlight as merge target
                         HighlightCellAsMergeTarget(targetPosition);
+                    }
+                    else {
+                        // Highlight as blocking tile (non-matching color)
+                        HighlightCellAsBlockingTile(targetPosition);
                     }
                     break; // Stop highlighting in this direction
                 }
@@ -899,7 +1214,6 @@ public class BoardManager : MonoBehaviour
     {
         GameObject cellIndicator = Instantiate(cellIndicatorPrefab, GetWorldPosition(position), Quaternion.identity, transform);
         cellIndicator.tag = "Highlight";
-        
         SpriteRenderer highlightRenderer = cellIndicator.GetComponent<SpriteRenderer>();
         if (highlightRenderer != null)
         {
@@ -907,15 +1221,12 @@ public class BoardManager : MonoBehaviour
             highlightRenderer.color = new Color(0.4f, 0.8f, 1f, 0.6f);
             highlightRenderer.material = new Material(Shader.Find("Sprites/Default"));
             highlightRenderer.material.SetColor("_Color", highlightRenderer.color);
-            
             // Make it slightly smaller than the cell to create a nice border effect
             cellIndicator.transform.localScale = new Vector3(cellSize * 0.9f, cellSize * 0.9f, 1f);
-            
             // Add pulsing animation for the highlight
             LeanTween.scale(cellIndicator, new Vector3(cellSize * 0.95f, cellSize * 0.95f, 1f), 0.6f)
                 .setEaseInOutSine()
                 .setLoopPingPong();
-                
             // Animate the opacity for better visibility
             LeanTween.alpha(cellIndicator, 0.4f, 0.8f)
                 .setEaseInOutSine()
@@ -927,7 +1238,6 @@ public class BoardManager : MonoBehaviour
     {
         GameObject cellIndicator = Instantiate(cellIndicatorPrefab, GetWorldPosition(position), Quaternion.identity, transform);
         cellIndicator.tag = "Highlight";
-        
         SpriteRenderer highlightRenderer = cellIndicator.GetComponent<SpriteRenderer>();
         if (highlightRenderer != null)
         {
@@ -935,24 +1245,84 @@ public class BoardManager : MonoBehaviour
             highlightRenderer.color = new Color(1f, 0.7f, 0.2f, 0.7f);
             highlightRenderer.material = new Material(Shader.Find("Sprites/Default"));
             highlightRenderer.material.SetColor("_Color", highlightRenderer.color);
-            
             // Make it slightly larger and with more distinct animation for merge targets
             cellIndicator.transform.localScale = new Vector3(cellSize * 0.95f, cellSize * 0.95f, 1f);
-            
             // Add more dynamic pulsing animation for merge targets
             LeanTween.scale(cellIndicator, new Vector3(cellSize * 1.05f, cellSize * 1.05f, 1f), 0.4f)
                 .setEaseInOutSine()
                 .setLoopPingPong();
-                
             // More vibrant opacity animation for merge targets
             LeanTween.alpha(cellIndicator, 0.9f, 0.6f)
                 .setEaseInOutSine()
                 .setLoopPingPong();
-                
             // Add a rotation effect for extra emphasis
             LeanTween.rotateZ(cellIndicator, 10f, 1.5f)
                 .setEaseInOutSine()
                 .setLoopPingPong();
+        }
+    }
+
+    // Add a new method to highlight invalid targets
+    private void HighlightCellAsInvalidTarget(Vector2Int position)
+    {
+        GameObject cellIndicator = Instantiate(cellIndicatorPrefab, GetWorldPosition(position), Quaternion.identity, transform);
+        cellIndicator.tag = "Highlight";
+        
+        SpriteRenderer highlightRenderer = cellIndicator.GetComponent<SpriteRenderer>();
+        if (highlightRenderer != null)
+        {
+            // Red highlight color for invalid targets
+            highlightRenderer.color = new Color(1f, 0.3f, 0.3f, 0.5f);
+            highlightRenderer.material = new Material(Shader.Find("Sprites/Default"));
+            highlightRenderer.material.SetColor("_Color", highlightRenderer.color);
+            
+            // Add tooltip GameObject with text
+            GameObject tooltip = new GameObject("InvalidMergeTooltip");
+            tooltip.transform.SetParent(cellIndicator.transform);
+            tooltip.transform.localPosition = new Vector3(0, 0.75f, -0.1f);
+            
+            // Add TextMesh component for the tooltip
+            TMPro.TextMeshPro tooltipText = tooltip.AddComponent<TMPro.TextMeshPro>();
+            tooltipText.text = "Cannot merge with\nspecial tiles";
+            tooltipText.fontSize = 2f;
+            tooltipText.alignment = TMPro.TextAlignmentOptions.Center;
+            tooltipText.color = Color.white;
+            tooltipText.outlineWidth = 0.2f;
+            tooltipText.outlineColor = Color.black;
+            
+            // Slightly smaller outline around the special tile
+            cellIndicator.transform.localScale = new Vector3(cellSize * 0.85f, cellSize * 0.85f, 1f);
+            
+            // Add a subtle animation to draw attention
+            LeanTween.rotateZ(cellIndicator, 10f, 1.5f)
+                .setEaseInOutSine()
+                .setLoopPingPong();
+            
+            // Animate tooltip
+            LeanTween.moveLocalY(tooltip, 0.9f, 1f)
+                .setEaseInOutSine()
+                .setLoopPingPong();
+        }
+    }
+
+    // Add a new method to highlight blocking tiles (non-matching color)
+    private void HighlightCellAsBlockingTile(Vector2Int position)
+    {
+        GameObject cellIndicator = Instantiate(cellIndicatorPrefab, GetWorldPosition(position), Quaternion.identity, transform);
+        cellIndicator.tag = "Highlight";
+        
+        SpriteRenderer highlightRenderer = cellIndicator.GetComponent<SpriteRenderer>();
+        if (highlightRenderer != null)
+        {
+            // Gray highlight for non-matching color tiles
+            highlightRenderer.color = new Color(0.5f, 0.5f, 0.5f, 0.4f);
+            highlightRenderer.material = new Material(Shader.Find("Sprites/Default"));
+            highlightRenderer.material.SetColor("_Color", highlightRenderer.color);
+            
+            // Slightly smaller outline around the tile
+            cellIndicator.transform.localScale = new Vector3(cellSize * 0.85f, cellSize * 0.85f, 1f);
+            
+            // No animation needed for blocking tiles - just static highlight
         }
     }
 
@@ -964,10 +1334,8 @@ public class BoardManager : MonoBehaviour
         {
             Destroy(highlight);
         }
-        
         // Also make sure we clear any SelectionHighlightIdentifier objects
         ClearSelectionHighlights();
-        
         // Then also check children as a backup (in case tag-based search misses any)
         foreach (Transform child in transform)
         {
@@ -976,7 +1344,6 @@ public class BoardManager : MonoBehaviour
                 Destroy(child.gameObject);
             }
         }
-        
         // Finally check the scene for any strays
         foreach (GameObject obj in GameObject.FindObjectsOfType<GameObject>())
         {
@@ -987,61 +1354,113 @@ public class BoardManager : MonoBehaviour
         }
     }
 
-    private void HandleTileMoveConfirmation(Vector2Int targetPosition)
+    public void HandleTileMoveConfirmation(Vector2Int targetPosition)
     {
-        if (GameStateManager.Instance != null && !GameStateManager.Instance.IsInState<WaitingForInputState>())
+        // First, verify that we're in WaitingForInputState
+        if (GameStateManager.Instance == null || !GameStateManager.Instance.IsInState<WaitingForInputState>())
         {
+            Debug.Log("BoardManager: HandleTileMoveConfirmation aborted - not in WaitingForInputState");
             return;
         }
 
         if (selectedTile == null)
         {
+            Debug.LogWarning("BoardManager: HandleTileMoveConfirmation called with no selected tile");
             return;
         }
 
         if (!IsWithinBounds(targetPosition))
         {
+            Debug.LogWarning($"BoardManager: HandleTileMoveConfirmation called with out-of-bounds position {targetPosition}");
             return;
         }
 
         // If the clicked cell is the same as the selected tile's cell, do nothing.
         if (targetPosition == selectedTilePosition)
         {
+            Debug.Log($"BoardManager: Target position {targetPosition} is the same as selected tile position. No movement needed.");
             return;
         }
 
+        Debug.Log($"BoardManager: Checking movement from {selectedTilePosition} to {targetPosition}");
+        
         // Check if the move is valid by ensuring the target is within the allowed distance
         Vector2Int direction = targetPosition - selectedTilePosition;
-        if ((Mathf.Abs(direction.x) + Mathf.Abs(direction.y)) <= selectedTile.number && 
-            (direction.x == 0 || direction.y == 0))
+        int manhattanDistance = Mathf.Abs(direction.x) + Mathf.Abs(direction.y);
+        bool isOrthogonal = direction.x == 0 || direction.y == 0; // Movement must be along one axis only
+        
+        Debug.Log($"BoardManager: Move check - Manhattan distance: {manhattanDistance}, Max allowed: {selectedTile.number}, Orthogonal: {isOrthogonal}");
+
+        if (manhattanDistance <= selectedTile.number && isOrthogonal)
         {
+            // Check if the path is clear
+            bool pathClear = IsPathClear(selectedTilePosition, targetPosition);
+            if (!pathClear)
+            {
+                Debug.LogWarning($"BoardManager: Path from {selectedTilePosition} to {targetPosition} is obstructed");
+                return;
+            }
+            
             if (IsCellOccupied(targetPosition))
             {
                 Tile targetTile = GetTileAtPosition(targetPosition);
-
-                if (CompareColors(selectedTile.tileColor, targetTile.tileColor))
+                // Check for color matching + other merge conditions
+                if (targetTile != null && CompareColors(selectedTile.tileColor, targetTile.tileColor))
                 {
-                    ClearCell(selectedTilePosition);
-                    emptyCells.Add(selectedTilePosition);
+                    // Store references before clearing selection
+                    Tile sourceTile = selectedTile;
+                    Vector2Int sourcePos = selectedTilePosition;
 
-                    if (TileMerger.MergeTiles(targetTile, selectedTile))
-                    {
-                        TileAnimator animator = targetTile.GetComponent<TileAnimator>();
-                        animator?.PlayMergeAnimation();
-                    }
+                    // Merge operation
+                    Debug.Log($"BoardManager: Target cell at {targetPosition} has a compatible tile. Merging...");
+                    
+                    ClearAllSelectionState(); // Clear selection UI first
+                    
+                    StartCoroutine(MoveTileToTargetForMerge(sourceTile, targetTile, () => {
+                        // Clear the source cell on the board array
+                        ClearCell(sourcePos);
+                        emptyCells.Add(sourcePos);
 
-                    selectedTile = null;
-                    ClearHighlights();
-                    GameManager.Instance.EndTurn();
+                        bool mergeSuccess = TileMerger.MergeTiles(targetTile, sourceTile);
+                        
+                        if (mergeSuccess)
+                        {
+                            TileAnimator animator = targetTile.GetComponent<TileAnimator>();
+                            if (animator != null)
+                            {
+                                animator.PlayMergeAnimation();
+                            }
+                            
+                            GameManager.Instance.EndTurn();
+                        }
+                    }));
+                }
+                else
+                {
+                    Debug.Log($"BoardManager: Target cell at {targetPosition} has an incompatible tile. Movement aborted.");
                     return;
                 }
             }
             else
             {
-                MoveTile(selectedTile, selectedTilePosition, targetPosition);
-                ClearAllSelectionState();
+                // Target cell is empty, perform movement
+                Debug.Log($"BoardManager: Moving tile from {selectedTilePosition} to empty cell at {targetPosition}");
+                
+                // Store a reference to the selected tile before clearing selection
+                Tile tileToMove = selectedTile;
+                Vector2Int startPos = selectedTilePosition;
+                
+                ClearAllSelectionState(); // Clear selection UI first
+                
+                // Now perform the move operation
+                MoveTile(tileToMove, startPos, targetPosition);
                 GameManager.Instance.EndTurn();
             }
+        }
+        else
+        {
+            Debug.LogWarning($"BoardManager: Invalid move - " + 
+                            (!isOrthogonal ? "movement must be orthogonal" : "distance too great"));
         }
     }
 
@@ -1062,7 +1481,6 @@ public class BoardManager : MonoBehaviour
         {
             yield return StartCoroutine(mover.MoveTile(GetWorldPosition(targetPos), Constants.TILE_MOVE_DURATION));
         }
-        
         // Now do the actual merge and update the board state
         if (TileMerger.MergeTiles(targetTile, sourceTile))
         {
@@ -1075,54 +1493,6 @@ public class BoardManager : MonoBehaviour
         }
     }
 
-    // Helper method to check if a move is valid
-    public bool IsValidMove(Vector2Int startPosition, Vector2Int targetPosition, int maxSteps)
-    {
-        // Find which direction this move is in
-        Vector2Int diff = targetPosition - startPosition;
-        
-        // Only allow cardinal directions
-        if (diff.x != 0 && diff.y != 0)
-        {
-            return false;
-        }
-        
-        Vector2Int direction;
-        int distance;
-        
-        if (Mathf.Abs(diff.x) > Mathf.Abs(diff.y))
-        {
-            direction = new Vector2Int((int)Mathf.Sign(diff.x), 0);  // Cast to int
-            distance = Mathf.Abs(diff.x);
-        }
-        else
-        {
-            direction = new Vector2Int(0, (int)Mathf.Sign(diff.y));  // Cast to int
-            distance = Mathf.Abs(diff.y);
-        }
-        
-        // Check if the move is too far
-        if (distance > maxSteps)
-        {
-            return false;
-        }
-        
-        // Check if there are obstacles in the path
-        for (int step = 1; step <= distance; step++)
-        {
-            Vector2Int checkPosition = startPosition + direction * step;
-            
-            // If we're not at the target and there's an obstacle, move is invalid
-            if (step < distance && IsCellOccupied(checkPosition))
-            {
-                return false;
-            }
-        }
-        
-        // All checks passed
-        return true;
-    }
-
     /// <summary>
     /// Registers a tile that was created from splitting at the given position.
     /// </summary>
@@ -1133,21 +1503,19 @@ public class BoardManager : MonoBehaviour
         {
             return;
         }
-        
+
         // Make sure we're not putting a tile in an occupied cell
         if (board[position.x, position.y] != null)
         {
             return;
         }
-        
+
         // Add the tile to the board at the specified position
         SetTileAtPosition(position, tile);
         // Mark the cell as occupied so it's not used for spawning
         emptyCells.Remove(position);
-        
         // Ensure the tile is positioned correctly in world space
         tile.transform.position = GetWorldPosition(position);
-        
         // Verify the tile's values and text component
         var textComp = tile.GetComponentInChildren<TMPro.TextMeshPro>();
         if (textComp != null)
@@ -1159,12 +1527,34 @@ public class BoardManager : MonoBehaviour
             }
             textComp.ForceMeshUpdate();
         }
-        
         // Update the tile's visuals one more time to ensure everything is set up correctly
         tile.UpdateVisuals();
     }
 
-    // Add this method to allow clearing the board for game restart
+    private void HighlightCell(Vector2Int position)
+    {
+        GameObject cellIndicator = Instantiate(cellIndicatorPrefab, GetWorldPosition(position), Quaternion.identity, transform);
+        cellIndicator.tag = "Highlight";
+        SpriteRenderer highlightRenderer = cellIndicator.GetComponent<SpriteRenderer>();
+        if (highlightRenderer != null)
+        {
+            // Use a general highlight color (between move and merge colors)
+            highlightRenderer.color = new Color(0.7f, 0.7f, 1f, 0.6f);
+            highlightRenderer.material = new Material(Shader.Find("Sprites/Default"));
+            highlightRenderer.material.SetColor("_Color", highlightRenderer.color);
+            // Make it slightly smaller than the cell to create a nice border effect
+            cellIndicator.transform.localScale = new Vector3(cellSize * 0.9f, cellSize * 0.9f, 1f);
+            // Add pulsing animation for the highlight
+            LeanTween.scale(cellIndicator, new Vector3(cellSize * 0.95f, cellSize * 0.95f, 1f), 0.6f)
+                .setEaseInOutSine()
+                .setLoopPingPong();
+            // Animate the opacity for better visibility
+            LeanTween.alpha(cellIndicator, 0.4f, 0.8f)
+                .setEaseInOutSine()
+                .setLoopPingPong();
+        }
+    }
+
     public void ClearBoard()
     {
         // Destroy all tile GameObjects
@@ -1175,10 +1565,10 @@ public class BoardManager : MonoBehaviour
                 Destroy(tile.gameObject);
             }
         }
-        
+
         // Reset the board array
         board = new Tile[width, height];
-        
+
         // Reset empty cells
         emptyCells.Clear();
         for (int x = 0; x < width; x++)
@@ -1188,30 +1578,53 @@ public class BoardManager : MonoBehaviour
                 emptyCells.Add(new Vector2Int(x, y));
             }
         }
-        
+
         // Clear any highlights
         ClearHighlights();
-        
-        // Reset selection
-        selectedTile = null;
-        selectedTilePosition = Vector2Int.zero;
+        ClearSelection();
     }
 
     public void PerformMergeOperation(Tile sourceTile, Tile targetTile, Vector2Int sourcePos, Vector2Int targetPos)
     {
-        ClearSelection();
-        ClearAllSelectionState();
+        if (sourceTile == null || targetTile == null || !IsWithinBounds(sourcePos) || !IsWithinBounds(targetPos))
+        {
+            Debug.LogError($"BoardManager: Invalid merge operation. Source: {sourceTile}, Target: {targetTile}, SourcePos: {sourcePos}, TargetPos: {targetPos}");
+            return;
+        }
 
+        ClearAllSelectionState();
         StartCoroutine(MoveTileToTargetForMerge(sourceTile, targetTile, () =>
         {
+            // Clear the source cell on the board array
             ClearCell(sourcePos);
             emptyCells.Add(sourcePos);
 
-            if (TileMerger.MergeTiles(targetTile, sourceTile))
+            bool mergeSuccess = TileMerger.MergeTiles(targetTile, sourceTile);
+            Debug.Log($"BoardManager: Merge result: {(mergeSuccess ? "SUCCESS" : "FAILED")}");
+
+            // Validate that the source tile is properly removed from the board array
+            if (GetTileAtPosition(sourcePos) != null)
             {
+                Debug.LogError($"BoardManager: Source tile at {sourcePos} was not properly removed from the board array after merging.");
+                ClearCell(sourcePos); // Force clear it again
+            }
+            else
+            {
+                Debug.Log($"BoardManager: Source tile at {sourcePos} successfully removed from the board array.");
+            }
+
+            // Verify the source tile GameObject was destroyed
+            if (sourceTile != null && sourceTile.gameObject != null)
+            {
+                Debug.LogError($"BoardManager: Source tile GameObject was not destroyed during merge. Destroying it now.");
+                Destroy(sourceTile.gameObject);
+            }
+
+            if (mergeSuccess)
+            {
+                // Play merge animation
                 TileAnimator animator = targetTile.GetComponent<TileAnimator>();
                 animator?.PlayMergeAnimation();
-
                 ClearSelection();
                 ClearAllSelectionState();
             }
@@ -1222,7 +1635,6 @@ public class BoardManager : MonoBehaviour
         }));
     }
 
-    // Add this helper method to help with debugging
     public int GetEmptyCellsCount()
     {
         return emptyCells.Count;
@@ -1235,10 +1647,14 @@ public class BoardManager : MonoBehaviour
 
     public void PerformSplitOperation(Tile tile, Vector2Int position)
     {
-        if (tile != null && IsWithinBounds(position))
+        if (tile == null || !IsWithinBounds(position))
         {
-            TileSplitter.SplitTile(tile, position);
+            Debug.LogError($"BoardManager: Invalid split operation. Tile: {tile}, Position: {position}");
+            return;
         }
+
+        TileSplitter.SplitTile(tile, position);
+        Debug.Log($"BoardManager: Split operation performed on tile at {position}.");
     }
 
     /// <summary>
@@ -1252,13 +1668,11 @@ public class BoardManager : MonoBehaviour
         {
             Debug.LogWarning($"BoardManager: Cannot spawn special tile at {position}. Finding alternative position...");
             Vector2Int? alternatePosition = FindEmptyPositionNear(position);
-            
             if (!alternatePosition.HasValue || !this.IsCellEmpty(alternatePosition.Value))
             {
                 Debug.LogWarning($"BoardManager: Could not find a valid position for special tile spawn. Skipping.");
                 return;
             }
-            
             position = alternatePosition.Value;
         }
 
@@ -1273,7 +1687,6 @@ public class BoardManager : MonoBehaviour
                 Debug.LogError($"BoardManager: Found tile with value {existingTile.number} at {position} while trying to spawn special tile!");
                 return;
             }
-            
             // Check for special tiles at this position
             SpecialTile specialTile = SpecialTileManager.Instance?.GetSpecialTileAtPosition(position);
             if (specialTile != null)
@@ -1281,12 +1694,9 @@ public class BoardManager : MonoBehaviour
                 Debug.LogError($"BoardManager: Found special tile '{specialTile.specialAbilityName}' at {position} while trying to spawn new special tile!");
                 return;
             }
-            
-            return;
         }
 
         Debug.Log($"BoardManager: Confirmed cell at {position} is empty. Proceeding with special tile spawn.");
-        
         if (Random.value < Constants.SPECIAL_TILE_CHANCE)
         {
             string[] specialTileTypes = { "Blaster", "Freeze", "Doubler", "Painter" };
@@ -1306,7 +1716,7 @@ public class BoardManager : MonoBehaviour
         {
             return position;
         }
-        
+
         List<Vector2Int> candidatePositions = new List<Vector2Int>();
         
         // Check nearby positions in a spiral pattern
@@ -1333,7 +1743,6 @@ public class BoardManager : MonoBehaviour
                     }
                 }
             }
-            
             // If we found at least one valid position, randomly choose one and return it
             if (candidatePositions.Count > 0)
             {
@@ -1342,7 +1751,7 @@ public class BoardManager : MonoBehaviour
                 return selectedPos;
             }
         }
-        
+
         // If no positions are found in spiral search, check all empty cells
         if (emptyCells.Count > 0)
         {
@@ -1352,7 +1761,6 @@ public class BoardManager : MonoBehaviour
             // Filter the list to ensure cells are actually empty
             allEmptyCells.RemoveAll(pos => GetTileAtPosition(pos) != null || 
                                           SpecialTileManager.Instance?.GetSpecialTileAtPosition(pos) != null);
-            
             if (allEmptyCells.Count > 0)
             {
                 Vector2Int randomEmptyCell = allEmptyCells[Random.Range(0, allEmptyCells.Count)];
@@ -1360,7 +1768,7 @@ public class BoardManager : MonoBehaviour
                 return randomEmptyCell;
             }
         }
-        
+
         // If we get here, there are no viable positions
         Debug.LogWarning($"BoardManager: No empty cells found on the entire board for special tile!");
         return null;
@@ -1419,7 +1827,6 @@ public class BoardManager : MonoBehaviour
             Debug.Log("BoardManager: Tile spawn skipped.");
             return;
         }
-
         // ...existing tile spawn logic...
     }
 
@@ -1429,38 +1836,8 @@ public class BoardManager : MonoBehaviour
     public bool IsCellEmptyOrMergeable(Vector2Int position, Tile tile)
     {
         if (!IsWithinBounds(position)) return false;
-
         Tile targetTile = GetTileAtPosition(position);
         return targetTile == null || CompareColors(tile.tileColor, targetTile.tileColor);
-    }
-
-    // Add this method back since it's still referenced in the code
-    private void HighlightCell(Vector2Int position)
-    {
-        GameObject cellIndicator = Instantiate(cellIndicatorPrefab, GetWorldPosition(position), Quaternion.identity, transform);
-        cellIndicator.tag = "Highlight";
-        
-        SpriteRenderer highlightRenderer = cellIndicator.GetComponent<SpriteRenderer>();
-        if (highlightRenderer != null)
-        {
-            // Use a general highlight color (between move and merge colors)
-            highlightRenderer.color = new Color(0.7f, 0.7f, 1f, 0.6f);
-            highlightRenderer.material = new Material(Shader.Find("Sprites/Default"));
-            highlightRenderer.material.SetColor("_Color", highlightRenderer.color);
-            
-            // Make it slightly smaller than the cell to create a nice border effect
-            cellIndicator.transform.localScale = new Vector3(cellSize * 0.9f, cellSize * 0.9f, 1f);
-            
-            // Add pulsing animation for the highlight
-            LeanTween.scale(cellIndicator, new Vector3(cellSize * 0.95f, cellSize * 0.95f, 1f), 0.6f)
-                .setEaseInOutSine()
-                .setLoopPingPong();
-                
-            // Animate the opacity for better visibility
-            LeanTween.alpha(cellIndicator, 0.4f, 0.8f)
-                .setEaseInOutSine()
-                .setLoopPingPong();
-        }
     }
 
     /// <summary>
@@ -1491,11 +1868,9 @@ public class BoardManager : MonoBehaviour
                         Debug.Log($"BoardManager: Tile GameObject is already null, just clearing the cell reference.");
                     }
                 }
-                
                 // Always clear the cell in the data structure
                 ClearCell(position); 
             }
-            
             // Check for any physical objects at this position (belt and suspenders approach)
             Vector2 worldPos = GetWorldPosition(position);
             Collider2D[] colliders = Physics2D.OverlapCircleAll(worldPos, 0.4f);
@@ -1505,11 +1880,9 @@ public class BoardManager : MonoBehaviour
                 if (collider.gameObject.CompareTag("Highlight")) continue; // Skip UI elements
                 
                 Debug.LogError($"BoardManager: Found physical collider at position {position} for GameObject {collider.gameObject.name}. This should be cleared before adding to emptyCells!");
-                
                 // Check if it's a tile or special tile
                 Tile tileComp = collider.GetComponent<Tile>();
                 SpecialTile specialTileComp = collider.GetComponent<SpecialTile>();
-                
                 if (tileComp != null || specialTileComp != null)
                 {
                     Debug.LogError($"BoardManager: Destroying unexpected {(tileComp != null ? "Tile" : "SpecialTile")} at position {position}");
@@ -1532,5 +1905,225 @@ public class BoardManager : MonoBehaviour
         {
             Debug.LogWarning($"BoardManager: Tried to add out-of-bounds position {position} to emptyCells");
         }
+    }
+
+    public void DestroyTile(Tile tile, Vector2Int position)
+    {
+        if (tile == null || !IsWithinBounds(position))
+        {
+            Debug.LogError($"BoardManager: Invalid destroy operation. Tile: {tile}, Position: {position}");
+            return;
+        }
+
+        tile.ResetState(); // Reset the tile's state before destruction
+        Destroy(tile.gameObject);
+        ClearCell(position); // Ensure the cell is cleared and added to emptyCells
+        // Log the destruction operation
+        Debug.Log($"BoardManager: Destroyed tile at {position}.");
+    }
+
+    public void SpawnTile(Vector2Int position, int number, Color color)
+    {
+        if (!IsCellEmpty(position))
+        {
+            Debug.LogError($"BoardManager: Cannot spawn tile at {position} because the cell is not empty.");
+            return;
+        }
+
+        GameObject newTile = Instantiate(tilePrefab, GetWorldPosition(position), Quaternion.identity, transform);
+        Tile tileComponent = newTile.GetComponent<Tile>();
+        if (tileComponent != null)
+        {
+            tileComponent.Initialize(color, number);
+            SetTileAtPosition(position, tileComponent);
+            // Log the spawning operation
+            Debug.Log($"BoardManager: Spawned tile with number {number} and color {color} at {position}.");
+        }
+        else
+        {
+            Debug.LogError("BoardManager: Spawned tile does not have a Tile component.");
+            Destroy(newTile);
+        }
+    }
+
+    /// <summary>
+    /// Verifies and corrects the consistency between the board data structure and the actual tile objects in the scene.
+    /// </summary>
+    public void VerifyBoardConsistency()
+    {
+        Debug.Log("BoardManager: Verifying board consistency");
+        
+        // Step 1: Ensure all tiles in the board array actually exist at the correct position
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                Vector2Int pos = new Vector2Int(x, y);
+                Tile boardTile = GetTileAtPosition(pos);
+                
+                if (boardTile != null)
+                {
+                    // Verify the tile's world position matches where it should be
+                    Vector2 expectedWorldPos = GetWorldPosition(pos);
+                    Vector2 actualWorldPos = boardTile.transform.position;
+                    
+                    // If the tile exists but is not at the expected position
+                    if (Vector2.Distance(expectedWorldPos, actualWorldPos) > 0.1f)
+                    {
+                        Debug.LogWarning($"BoardManager: Tile position mismatch at {pos}. Expected: {expectedWorldPos}, Actual: {actualWorldPos}. Correcting position.");
+                        boardTile.transform.position = expectedWorldPos;
+                    }
+                }
+            }
+        }
+        
+        // Step 2: Find all physical tiles in the scene and ensure they're properly registered in the board
+        foreach (Tile tile in FindObjectsOfType<Tile>())
+        {
+            if (tile.GetComponent<SpecialTile>() != null)
+                continue; // Skip special tiles
+                
+            Vector2Int gridPos = GetGridPositionFromWorldPosition(tile.transform.position);
+            
+            if (!IsWithinBounds(gridPos))
+            {
+                Debug.LogError($"BoardManager: Tile at {tile.transform.position} is out of bounds at grid position {gridPos}. Destroying it.");
+                Destroy(tile.gameObject);
+                continue;
+            }
+            
+            Tile boardTile = GetTileAtPosition(gridPos);
+            
+            // If there's a tile in the scene at a position where the board shows empty
+            if (boardTile == null)
+            {
+                Debug.LogWarning($"BoardManager: Found physical tile at {gridPos} but board shows empty. Registering tile.");
+                SetTileAtPosition(gridPos, tile);
+            }
+            // If there's a different tile in the board array than physically exists
+            else if (boardTile != tile)
+            {
+                Debug.LogError($"BoardManager: Tile mismatch at {gridPos}. Board has {boardTile.name} but found {tile.name}. Prioritizing physical tile.");
+                
+                // If the board tile is still in the scene, destroy it to avoid duplicates
+                if (boardTile != null && boardTile.gameObject != null)
+                {
+                    Debug.LogWarning($"BoardManager: Destroying duplicate tile {boardTile.name} at {gridPos}");
+                    Destroy(boardTile.gameObject);
+                }
+                
+                SetTileAtPosition(gridPos, tile);
+            }
+        }
+        
+        // Step 3: Fix emptyCells collection to match the board state
+        HashSet<Vector2Int> correctEmptyCells = new HashSet<Vector2Int>();
+        
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                Vector2Int pos = new Vector2Int(x, y);
+                Tile tile = GetTileAtPosition(pos);
+                
+                if (tile == null && IsWithinBounds(pos))
+                {
+                    correctEmptyCells.Add(pos);
+                }
+            }
+        }
+        
+        // Update the emptyCells collection
+        int addedCount = 0;
+        int removedCount = 0;
+        
+        // Add cells that should be empty but aren't in the collection
+        foreach (Vector2Int pos in correctEmptyCells)
+        {
+            if (!emptyCells.Contains(pos))
+            {
+                emptyCells.Add(pos);
+                addedCount++;
+            }
+        }
+        
+        // Remove cells that are in the collection but shouldn't be empty
+        List<Vector2Int> cellsToRemove = new List<Vector2Int>();
+        foreach (Vector2Int pos in emptyCells)
+        {
+            if (!correctEmptyCells.Contains(pos))
+            {
+                cellsToRemove.Add(pos);
+                removedCount++;
+            }
+        }
+        
+        foreach (Vector2Int pos in cellsToRemove)
+        {
+            emptyCells.Remove(pos);
+        }
+        
+        Debug.Log($"BoardManager: Board consistency check complete. Added {addedCount} empty cells, removed {removedCount} invalid empty cells.");
+    }
+
+    /// <summary>
+    /// Performs a comprehensive verification of the emptyCells collection to ensure it accurately represents the board state
+    /// </summary>
+    public void ValidateEmptyCellsCollection()
+    {
+        Debug.Log("BoardManager: Validating emptyCells collection");
+        HashSet<Vector2Int> actualEmptyCells = new HashSet<Vector2Int>();
+        
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                Vector2Int pos = new Vector2Int(x, y);
+                if (board[x, y] == null)
+                {
+                    actualEmptyCells.Add(pos);
+                }
+            }
+        }
+        
+        // Find cells that should be marked as empty but aren't
+        int missingCount = 0;
+        foreach (Vector2Int pos in actualEmptyCells)
+        {
+            if (!emptyCells.Contains(pos))
+            {
+                Debug.LogError($"BoardManager: Position {pos} should be empty but is not in emptyCells. Adding it.");
+                emptyCells.Add(pos);
+                missingCount++;
+            }
+        }
+        
+        // Find cells that are incorrectly marked as empty
+        List<Vector2Int> incorrectlyMarkedEmpty = new List<Vector2Int>();
+        foreach (Vector2Int pos in emptyCells)
+        {
+            if (!actualEmptyCells.Contains(pos))
+            {
+                Debug.LogError($"BoardManager: Position {pos} is in emptyCells but actually contains a tile. Removing it.");
+                incorrectlyMarkedEmpty.Add(pos);
+            }
+        }
+        
+        // Remove the incorrect entries
+        foreach (Vector2Int pos in incorrectlyMarkedEmpty)
+        {
+            emptyCells.Remove(pos);
+        }
+        
+        Debug.Log($"BoardManager: emptyCells validation completed. Added {missingCount} missing entries, removed {incorrectlyMarkedEmpty.Count} incorrect entries.");
+    }
+
+    /// <summary>
+    /// Checks if there's a currently selected tile
+    /// </summary>
+    /// <returns>True if a tile is selected, false otherwise</returns>
+    public bool HasSelectedTile()
+    {
+        return selectedTile != null;
     }
 }

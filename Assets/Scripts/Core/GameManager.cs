@@ -70,7 +70,7 @@ public class GameManager : MonoBehaviour
 
     public void EndTurn()
     {
-        GameStateManager.Instance?.SetState(new SpawningNewTileState());
+        GameStateManager.Instance?.EndTurn();
     }
 
     public void LoadNextLevel()

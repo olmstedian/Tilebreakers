@@ -215,4 +215,28 @@ public class GameStateManager : MonoBehaviour
             SetState(new CheckingGameOverState());
         }
     }
+
+    public void EndTurn()
+    {
+        // Reset the merge state of all tiles
+        foreach (Tile tile in FindObjectsOfType<Tile>())
+        {
+            if (tile.HasMerged())
+            {
+                Debug.Log($"GameStateManager: Resetting merge state for tile at {tile.transform.position}");
+            }
+            tile.ResetMergeState();
+        }
+
+        GameStateManager.Instance?.SetState(new SpawningNewTileState());
+    }
+
+    /// <summary>
+    /// Checks if the game is currently accepting player input for tile selection.
+    /// </summary>
+    /// <returns>True if player can select/move tiles, false otherwise.</returns>
+    public bool CanProcessTileInput()
+    {
+        return IsInState<WaitingForInputState>();
+    }
 }

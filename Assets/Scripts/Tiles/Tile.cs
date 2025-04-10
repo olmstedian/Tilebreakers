@@ -32,6 +32,14 @@ public class Tile : MonoBehaviour
     private Color originalOutlineColor;
     private Color textColor;
 
+    public bool hasMerged { get; private set; } = false;
+
+    // Add a getter method for better code readability
+    public bool HasMerged()
+    {
+        return hasMerged;
+    }
+
     void Awake()
     {
         spriteRenderer = GetComponent<SpriteRenderer>();
@@ -242,6 +250,48 @@ public class Tile : MonoBehaviour
         StartCoroutine(SubtleIdleAnimation());
     }
 
+    public void ResetState()
+    {
+        if (gameObject == null)
+        {
+            Debug.LogError("Tile: Attempted to reset state on a null GameObject.");
+            return;
+        }
+
+        number = 0;
+        tileColor = Color.white;
+        UpdateVisuals();
+        ClearSelectionState();
+        hasMerged = false;
+
+        Debug.Log($"Tile: Reset state for tile at position {transform.position}.");
+    }
+
+    public void MarkAsMerged()
+    {
+        hasMerged = true;
+        Debug.Log($"Tile: Marked tile at {transform.position} as merged.");
+        
+        // Make sure the collider remains enabled for selection
+        Collider2D tileCollider = GetComponent<Collider2D>();
+        if (tileCollider != null && !tileCollider.enabled)
+        {
+            tileCollider.enabled = true;
+        }
+    }
+
+    public void ResetMergeState()
+    {
+        hasMerged = false;
+        
+        // Ensure collider is enabled
+        Collider2D tileCollider = GetComponent<Collider2D>();
+        if (tileCollider != null && !tileCollider.enabled)
+        {
+            tileCollider.enabled = true;
+        }
+    }
+
     // Subtle continuous animation for idle tiles
     private IEnumerator SubtleIdleAnimation()
     {
@@ -351,6 +401,25 @@ public class Tile : MonoBehaviour
             LeanTween.cancel(selectionHighlight);
             Destroy(selectionHighlight);
             selectionHighlight = null;
+        }
+    }
+
+    private void OnMouseDown()
+    {
+        // Only process input when in the correct game state
+        if (GameStateManager.Instance == null || !GameStateManager.Instance.IsInState<WaitingForInputState>())
+        {
+            Debug.Log($"Tile: Ignored OnMouseDown - not in WaitingForInputState. Current state: {GameStateManager.Instance?.GetCurrentStateName() ?? "Unknown"}");
+            return;
+        }
+
+        // Convert world position to grid position
+        Vector2Int gridPosition = BoardManager.Instance.GetGridPositionFromWorldPosition(transform.position);
+        
+        // Instead of directly invoking the event, send the selection to the BoardManager
+        if (BoardManager.Instance != null)
+        {
+            BoardManager.Instance.HandleTileSelection(gridPosition);
         }
     }
 }

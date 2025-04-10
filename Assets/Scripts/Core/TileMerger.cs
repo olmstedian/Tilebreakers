@@ -1,130 +1,137 @@
 using UnityEngine;
 using System.Collections.Generic;
 
-public class TileMerger : MonoBehaviour
+public static class TileMerger
 {
     /// <summary>
-    /// Merges movingTile into staticTile if they have matching colors and meet the distance-based merging criteria.
+    /// Merges two tiles, increasing the value of the target tile.
+    /// Destroys the source tile after merging.
     /// </summary>
-    /// <param name="staticTile">The tile that remains in place</param>
-    /// <param name="movingTile">The tile being merged (will be destroyed)</param>
-    /// <param name="splitThreshold">Value at which tiles split (defaults to 12)</param>
-    /// <returns>True if merge was successful, false otherwise</returns>
-    public static bool MergeTiles(Tile staticTile, Tile movingTile, int splitThreshold = 12)
+    /// <param name="targetTile">The tile that will remain after merging</param>
+    /// <param name="sourceTile">The tile that will be destroyed after merging</param>
+    /// <returns>True if the merge was successful, false otherwise</returns>
+    public static bool MergeTiles(Tile targetTile, Tile sourceTile)
     {
-        Debug.Log($"TileMerger: MergeTiles called with staticTile:{staticTile?.number}, movingTile:{movingTile?.number}");
-        
-        if (staticTile == null) {
-            Debug.LogError("TileMerger: staticTile is null!");
-            return false;
-        }
-        
-        if (movingTile == null) {
-            Debug.LogError("TileMerger: movingTile is null!");
-            return false;
-        }
-        
-        if (staticTile == movingTile) {
-            Debug.LogError("TileMerger: Cannot merge a tile with itself!");
-            return false;
-        }
-
-        staticTile.ClearSelectionState();
-        movingTile.ClearSelectionState();
-
-        if (!ColorMatch(staticTile.tileColor, movingTile.tileColor)) {
-            Debug.LogError("TileMerger: Color mismatch between tiles!");
-            return false;
-        }
-
-        // Ensure the tiles are within the allowed distance
-        Vector2Int staticPos = BoardManager.Instance.GetGridPositionFromWorldPosition(staticTile.transform.position);
-        Vector2Int movingPos = BoardManager.Instance.GetGridPositionFromWorldPosition(movingTile.transform.position);
-        Vector2Int direction = movingPos - staticPos;
-        
-        Debug.Log($"TileMerger: staticPos:{staticPos}, movingPos:{movingPos}, direction:{direction}");
-        Debug.Log($"TileMerger: Manhattan distance:{Mathf.Abs(direction.x) + Mathf.Abs(direction.y)}, movingTile.number:{movingTile.number}");
-
-        // Validate the move is orthogonal and within range
-        if ((Mathf.Abs(direction.x) + Mathf.Abs(direction.y)) > movingTile.number || 
-            (direction.x != 0 && direction.y != 0))
+        if (targetTile == null || sourceTile == null)
         {
-            Debug.LogError("TileMerger: Merge failed. Tiles are not within the allowed distance or direction.");
+            Debug.LogError("TileMerger: Cannot merge null tiles!");
             return false;
         }
 
-        // Perform the merge
-        int originalNumber = staticTile.number;
-        staticTile.number += movingTile.number;
-        Debug.Log($"TileMerger: Merging numbers {originalNumber} + {movingTile.number} = {staticTile.number}");
-        
-        // Save original collider state and ensure it's enabled for the merged tile
-        Collider2D staticTileCollider = staticTile.GetComponent<Collider2D>();
-        bool wasColliderEnabled = staticTileCollider != null ? staticTileCollider.enabled : true;
-        
-        // Update visuals and make sure the merged tile remains interactive
-        staticTile.UpdateVisuals();
-        
-        // Re-enable collider if it was disabled during animation
-        if (staticTileCollider != null && !staticTileCollider.enabled && wasColliderEnabled)
+        // Check that the tiles have the same color
+        if (!AreSameColor(targetTile.tileColor, sourceTile.tileColor))
         {
-            Debug.Log("TileMerger: Re-enabling collider on merged tile");
-            staticTileCollider.enabled = true;
+            Debug.LogError("TileMerger: Cannot merge tiles of different colors!");
+            return false;
         }
+
+        Debug.Log($"TileMerger: Merging tiles {sourceTile.number} and {targetTile.number}");
+
+        // Log the original values for verification
+        int originalSourceNumber = sourceTile.number;
+        int originalTargetNumber = targetTile.number;
         
-        // Reset the tile's state to ensure it can be selected again
-        staticTile.SetState(Tile.TileState.Idle);
-        
-        // Store the reference to the GameObject before destruction
-        GameObject movingTileObject = movingTile.gameObject;
+        // Store the position of the target tile for board reference
+        Vector2Int targetPosition = BoardManager.Instance.GetGridPositionFromWorldPosition(targetTile.transform.position);
 
-        // Use the utility to safely destroy the moving tile
-        TileDestructionUtility.DestroyTile(movingTileObject, movingPos);
+        // Add the values of the two tiles
+        targetTile.number += sourceTile.number;
 
-        // Update the board state for the static tile
-        Debug.Log($"TileMerger: Setting tile at {staticPos}");
-        BoardManager.Instance.SetTileAtPosition(staticPos, staticTile);
+        Debug.Log($"TileMerger: Merge result: {originalSourceNumber} + {originalTargetNumber} = {targetTile.number}");
 
-        // Always update the lastMergedCellPosition
-        Debug.Log($"TileMerger: Setting lastMergedCellPosition to {staticPos}");
-        BoardManager.Instance.lastMergedCellPosition = staticPos;
+        // Update the target tile's visuals
+        targetTile.UpdateVisuals();
+        targetTile.SetState(Tile.TileState.Merging);
 
-        // Add score for the merge
-        ScoreManager.Instance.AddMergeScore(staticTile.number);
-        Debug.Log($"TileMerger: Added merge score for value {staticTile.number}");
+        // Update score
+        ScoreManager.Instance?.AddScore(targetTile.number);
 
-        // Trigger special tile spawning after the merge via GameManager instead of directly
-        if (Random.value < Constants.SPECIAL_TILE_CHANCE)
+        // Store reference to the source tile GameObject before destroying it
+        GameObject sourceTileObject = sourceTile.gameObject;
+
+        // Update board reference to the merged cell position
+        BoardManager.Instance.lastMergedCellPosition = targetPosition;
+
+        // Destroy the source tile
+        if (sourceTileObject != null)
         {
-            Debug.Log("TileMerger: Triggering special tile spawn via GameManager");
-            string specialTileType = "Random"; // Use weighted random selection
-            
-            // During testing, force Doubler tile sometimes
-            if (Constants.TESTING_MODE && Random.value < 0.6f)
+            // Check if the source object still exists - it should!
+            if (sourceTileObject)
             {
-                specialTileType = "Doubler";
-                Debug.Log("TileMerger: Testing mode forced a Doubler tile spawn.");
+                Debug.Log($"TileMerger: Destroying source tile GameObject with value {originalSourceNumber}");
+                Object.Destroy(sourceTileObject);
             }
-            
-            GameManager.Instance.SpawnSpecialTile(staticPos, specialTileType);
+            else
+            {
+                Debug.LogWarning("TileMerger: Source tile GameObject was already destroyed before TileMerger could destroy it!");
+            }
         }
 
-        // Check if we need to split the tile
-        if (staticTile.number > splitThreshold)
+        // Verify source tile destruction after a short delay
+        if (Application.isPlaying)
         {
-            Debug.Log($"TileMerger: Tile value {staticTile.number} exceeds split threshold {splitThreshold}, splitting");
-            TileSplitter.SplitTile(staticTile, staticPos);
+            // We can't use coroutines in a static class, so we'll add a verification component
+            // to the target tile that will check after a delay
+            MergeVerifier verifier = targetTile.gameObject.AddComponent<MergeVerifier>();
+            verifier.Initialize(sourceTileObject, originalSourceNumber, originalTargetNumber, targetPosition);
         }
 
-        Debug.Log("TileMerger: Merge completed successfully");
         return true;
     }
 
-    private static bool ColorMatch(Color a, Color b)
+    private static bool AreSameColor(Color a, Color b)
     {
-        const float tolerance = 0.01f;
+        const float tolerance = 0.01f; // Adjust tolerance if needed
         return Mathf.Abs(a.r - b.r) < tolerance && 
                Mathf.Abs(a.g - b.g) < tolerance && 
                Mathf.Abs(a.b - b.b) < tolerance;
+    }
+}
+
+/// <summary>
+/// Helper MonoBehaviour to verify that a source tile was properly destroyed after merging
+/// </summary>
+public class MergeVerifier : MonoBehaviour
+{
+    private GameObject _sourceTileObject;
+    private int _sourceValue;
+    private int _targetValue;
+    private Vector2Int _mergePosition;
+    private float _checkTime = 0.3f; // Time to wait before checking
+    private float _timer = 0f;
+    private bool _verified = false;
+
+    public void Initialize(GameObject sourceTileObject, int sourceValue, int targetValue, Vector2Int mergePosition)
+    {
+        _sourceTileObject = sourceTileObject;
+        _sourceValue = sourceValue;
+        _targetValue = targetValue;
+        _mergePosition = mergePosition;
+    }
+
+    private void Update()
+    {
+        if (_verified) return;
+        
+        _timer += Time.deltaTime;
+        
+        if (_timer >= _checkTime)
+        {
+            _verified = true;
+            
+            // Check if the source tile still exists
+            if (_sourceTileObject != null)
+            {
+                Debug.LogError($"MergeVerifier: Source tile with value {_sourceValue} was not properly destroyed after merging at position {_mergePosition}. Destroying it now.");
+                Destroy(_sourceTileObject);
+            }
+            else
+            {
+                Debug.Log($"MergeVerifier: Source tile destruction verified for merge ({_sourceValue} + {_targetValue} = {_sourceValue + _targetValue}) at position {_mergePosition}.");
+            }
+            
+            // Self-destruct after verification
+            Destroy(this);
+        }
     }
 }

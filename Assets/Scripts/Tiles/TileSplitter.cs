@@ -12,6 +12,12 @@ public class TileSplitter : MonoBehaviour
     /// <param name="originalPosition">Grid position of the original tile</param>
     public static void SplitTile(Tile tile, Vector2Int originalPosition)
     {
+        if (tile == null || !BoardManager.Instance.IsWithinBounds(originalPosition))
+        {
+            Debug.LogError($"TileSplitter: Invalid split operation. Tile: {tile}, Position: {originalPosition}");
+            return;
+        }
+
         Debug.Log($"TileSplitter: Splitting tile at {originalPosition} with value {tile.number}.");
 
         int originalValue = tile.number;
