@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
+using System.Linq; // Add this namespace for Enumerable extension methods
 
 public class TileSplitHandler : MonoBehaviour
 {
@@ -28,9 +29,42 @@ public class TileSplitHandler : MonoBehaviour
     /// </summary>
     public static void RegisterTilesToSplit(List<Vector2Int> positions)
     {
+        // CRITICAL FIX: Don't clear existing registrations unless explicitly requested
+        // This prevents losing high-value tile positions during state transitions
+        if (positions == null || positions.Count == 0)
+        {
+            Debug.LogWarning("TileSplitHandler: RegisterTilesToSplit called with empty positions list");
+            return;
+        }
+        
+        // Check for duplicates and merge with existing registrations
+        bool added = false;
+        foreach (var pos in positions)
+        {
+            if (!registeredTilesToSplit.Contains(pos))
+            {
+                registeredTilesToSplit.Add(pos);
+                added = true;
+                Debug.Log($"TileSplitHandler: Added position {pos} to split registry");
+            }
+        }
+        
+        if (added)
+        {
+            Debug.LogWarning($"TileSplitHandler: Now tracking {registeredTilesToSplit.Count} positions for splitting");
+        }
+        else
+        {
+            Debug.Log($"TileSplitHandler: No new positions to add, maintaining {registeredTilesToSplit.Count} registered positions");
+        }
+    }
+
+    // Add a new method to force clear and set positions
+    public static void ClearAndSetTilesToSplit(List<Vector2Int> positions)
+    {
         registeredTilesToSplit.Clear();
         registeredTilesToSplit.AddRange(positions);
-        Debug.Log($"TileSplitHandler: Registered {positions.Count} tiles for splitting");
+        Debug.Log($"TileSplitHandler: Cleared previous registry and registered {positions.Count} tiles for splitting");
     }
 
     /// <summary>
@@ -60,7 +94,14 @@ public class TileSplitHandler : MonoBehaviour
             return;
         }
 
-        Debug.Log($"TileSplitHandler: Splitting tile at {originalPosition} with value {tile.number}.");
+        // CRITICAL FIX: Add additional validation that we're splitting a valid tile
+        if (tile.number <= 12)
+        {
+            Debug.LogError($"TileSplitHandler: Attempted to split tile with value {tile.number} <= 12. This should not happen!");
+            return;
+        }
+
+        Debug.LogWarning($"TileSplitHandler: Splitting high-value tile at {originalPosition} with value {tile.number}.");
 
         int originalValue = tile.number;
         Color originalColor = tile.tileColor;
@@ -68,10 +109,23 @@ public class TileSplitHandler : MonoBehaviour
         // Store the reference to the GameObject before destruction
         GameObject tileObject = tile.gameObject;
 
-        // Determine how many tiles to split into, at least 2, but could be more based on value
-        int maxSplitCount = Mathf.Max(2, Mathf.CeilToInt(originalValue / 12f) + 1);
-        int minSplitCount = Mathf.Min(2, maxSplitCount); // Always at least 2 splits
-        int splitCount = Random.Range(minSplitCount, Mathf.Min(maxSplitCount + 1, 5)); // Cap at 5 splits
+        // IMPROVED LOGIC: Calculate split count based on tile value
+        // For extremely high values, create more tiles to distribute the values better
+        int baseSplitCount = Mathf.Max(2, Mathf.FloorToInt(originalValue / 8f));
+        int maxSplitCount = Mathf.Min(5, baseSplitCount + 1); // Cap at 5 splits
+        int minSplitCount = Mathf.Min(2, maxSplitCount); // Ensure at least 2 splits
+        
+        // For very high values (24+), ensure we use more splits
+        if (originalValue >= 24) {
+            minSplitCount = Mathf.Min(3, maxSplitCount);
+        }
+        if (originalValue >= 36) {
+            minSplitCount = Mathf.Min(4, maxSplitCount);
+        }
+        
+        int splitCount = Random.Range(minSplitCount, maxSplitCount + 1);
+        
+        Debug.Log($"TileSplitHandler: Value {originalValue} will be split into {splitCount} tiles (min:{minSplitCount}, max:{maxSplitCount})");
         
         List<Vector2Int> availablePositions = FindSplitPositions(originalPosition);
 
@@ -156,11 +210,19 @@ public class TileSplitHandler : MonoBehaviour
 
     /// <summary>
     /// Generates a list of values that add up to the target sum, ensuring no value exceeds maxValue.
+    /// Additionally guarantees that at least 2 tiles have values lower than 6.
     /// </summary>
     private static List<int> GenerateSplitValues(int targetSum, int count, int maxValue = int.MaxValue)
     {
         List<int> values = new List<int>();
         int remaining = targetSum;
+        
+        // IMPROVED: The minimum low-value threshold based on the split count
+        // For more splits, we can use higher low value thresholds
+        int lowValueThreshold = 6;
+        if (count >= 4) {
+            lowValueThreshold = Mathf.Min(8, maxValue - 1); // For 4+ splits, threshold can be higher
+        }
         
         // First, ensure we have enough values by giving each tile at least 1
         for (int i = 0; i < count; i++)
@@ -173,6 +235,24 @@ public class TileSplitHandler : MonoBehaviour
         if (remaining <= 0)
             return values;
 
+        // Ensure at least 2 tiles have values less than the threshold (if possible)
+        int lowValueTilesNeeded = 2;
+        List<int> lowValueIndices = new List<int>();
+
+        // IMPROVED DISTRIBUTION: Calculate the base value to distribute more evenly for high values
+        int baseDistribution = 0;
+        if (remaining >= count * 2) {
+            // If we have enough value to distribute, give each tile some base value
+            baseDistribution = Mathf.Min(remaining / count, maxValue - 1);
+            
+            // For each tile, add the base distribution
+            for (int i = 0; i < count; i++) {
+                int additionalValue = baseDistribution;
+                values[i] += additionalValue;
+                remaining -= additionalValue;
+            }
+        }
+
         // Calculate the maximum we can add to each tile to stay under maxValue
         List<int> maxAdditions = new List<int>();
         for (int i = 0; i < count; i++)
@@ -180,7 +260,50 @@ public class TileSplitHandler : MonoBehaviour
             maxAdditions.Add(maxValue - values[i]);
         }
 
-        // Distribute remaining points, respecting maxValue
+        // First pass: Allocate values for low-value tiles (less than threshold)
+        for (int i = 0; i < count && lowValueTilesNeeded > 0; i++)
+        {
+            // Maximum we can add while keeping this tile under lowValueThreshold
+            int maxLowAddition = Mathf.Min(lowValueThreshold - values[i] - 1, maxAdditions[i]);
+            
+            if (maxLowAddition > 0)
+            {
+                // Decide how much to add to this tile (between 1 and maxLowAddition)
+                int toAdd = Mathf.Min(remaining, Random.Range(1, maxLowAddition + 1));
+                
+                values[i] += toAdd;
+                maxAdditions[i] -= toAdd;
+                remaining -= toAdd;
+                
+                lowValueIndices.Add(i);
+                lowValueTilesNeeded--;
+                
+                Debug.Log($"TileSplitHandler: Allocated low value {values[i]} for tile {i}");
+            }
+        }
+
+        // If we couldn't create enough low-value tiles with the above method,
+        // just mark the lowest possible tiles as our low-value tiles
+        if (lowValueTilesNeeded > 0 && count >= 2)
+        {
+            Debug.Log("TileSplitHandler: Couldn't create enough low-value tiles in first pass. Ensuring the lowest tiles are tracked.");
+            
+            // Clear existing low value indices
+            lowValueIndices.Clear();
+            
+            // Create a list of indices sorted by current value
+            List<int> sortedIndices = Enumerable.Range(0, count).ToList();
+            sortedIndices.Sort((a, b) => values[a].CompareTo(values[b]));
+            
+            // Take the two lowest value tiles
+            for (int i = 0; i < Mathf.Min(2, count) && lowValueTilesNeeded > 0; i++)
+            {
+                lowValueIndices.Add(sortedIndices[i]);
+                lowValueTilesNeeded--;
+            }
+        }
+
+        // Distribute remaining points, respecting maxValue and avoiding low value tiles if needed
         while (remaining > 0)
         {
             // Check if we still have tiles that can accept more points
@@ -191,24 +314,40 @@ public class TileSplitHandler : MonoBehaviour
                 break;
             }
             
-            // Randomly select a tile to add a point to
-            int idx;
-            int attempts = 0;
-            do {
-                idx = Random.Range(0, count);
-                attempts++;
-                // Break out if we've tried too many times to avoid infinite loop
-                if (attempts > 100)
+            // Prioritize tiles that are not marked as low-value tiles
+            List<int> priorityIndices = new List<int>();
+            for (int i = 0; i < count; i++)
+            {
+                if (!lowValueIndices.Contains(i) && maxAdditions[i] > 0)
                 {
-                    Debug.LogError("TileSplitHandler: Failed to find valid tile to add value to. Aborting distribution.");
-                    break;
+                    priorityIndices.Add(i);
                 }
-            } while (maxAdditions[idx] <= 0);
+            }
+            
+            // If we have priority indices (non-low-value tiles), use them
+            List<int> distributionIndices = priorityIndices.Count > 0 ? priorityIndices : 
+                Enumerable.Range(0, count).Where(i => maxAdditions[i] > 0).ToList();
+            
+            if (distributionIndices.Count == 0)
+            {
+                Debug.LogWarning("TileSplitHandler: No valid tiles for further distribution.");
+                break;
+            }
+            
+            // Randomly select a tile to add a point to
+            int idx = distributionIndices[Random.Range(0, distributionIndices.Count)];
             
             // Add one point and reduce remaining
             values[idx]++;
             maxAdditions[idx]--;
             remaining--;
+            
+            // If this tile is now too high for a low value, remove it from that list
+            if (lowValueIndices.Contains(idx) && values[idx] >= lowValueThreshold)
+            {
+                lowValueIndices.Remove(idx);
+                Debug.LogWarning($"TileSplitHandler: Tile {idx} is no longer a low-value tile with value {values[idx]}");
+            }
         }
         
         // If we still have remaining value but couldn't distribute it, log a warning
@@ -216,15 +355,68 @@ public class TileSplitHandler : MonoBehaviour
         {
             Debug.LogWarning($"TileSplitHandler: Couldn't distribute all value. Original: {targetSum}, Sum of splits: {targetSum - remaining}");
             
-            // Last effort - add remaining value to the first tile, ignoring maxValue
-            // This should never happen with proper distribution above
-            if (values.Count > 0)
+            // Last effort - add remaining value to the first available non-low-value tile
+            List<int> nonLowValueIndices = Enumerable.Range(0, count).Where(i => !lowValueIndices.Contains(i)).ToList();
+            if (nonLowValueIndices.Count > 0)
+            {
+                int idx = nonLowValueIndices[0];
+                Debug.LogWarning($"TileSplitHandler: Adding remaining {remaining} to non-low-value tile {idx}");
+                values[idx] += remaining;
+            }
+            // If all tiles are low-value, add to the first tile
+            else if (values.Count > 0)
             {
                 Debug.LogWarning($"TileSplitHandler: Adding remaining {remaining} to first tile, which might exceed maxValue!");
                 values[0] += remaining;
             }
         }
-
+        
+        // Validate that we have at least 2 low-value tiles (if we have enough tiles)
+        if (count >= 2)
+        {
+            int lowValueCount = values.Count(v => v < lowValueThreshold);
+            if (lowValueCount < 2)
+            {
+                Debug.LogWarning($"TileSplitHandler: Only {lowValueCount} low-value tiles created. Attempting to fix...");
+                
+                // Force adjust some values if needed
+                List<int> indices = Enumerable.Range(0, count).ToList();
+                indices.Sort((a, b) => values[a].CompareTo(values[b])); // Sort by value ascending
+                
+                // Force the two lowest tiles to be under the threshold
+                for (int i = 0; i < Mathf.Min(2, count); i++)
+                {
+                    int idx = indices[i];
+                    if (values[idx] >= lowValueThreshold)
+                    {
+                        int excess = values[idx] - (lowValueThreshold - 1);
+                        values[idx] = lowValueThreshold - 1;
+                        
+                        // Try to redistribute the excess
+                        for (int j = count - 1; j >= 0 && excess > 0; j--)
+                        {
+                            int highestIdx = indices[j];
+                            if (highestIdx != idx && values[highestIdx] < maxValue)
+                            {
+                                int canAdd = Mathf.Min(excess, maxValue - values[highestIdx]);
+                                values[highestIdx] += canAdd;
+                                excess -= canAdd;
+                            }
+                        }
+                        
+                        Debug.Log($"TileSplitHandler: Adjusted tile {idx} to value {values[idx]}");
+                    }
+                }
+            }
+        }
+        
+        // Log the split operation details
+        Debug.Log($"TileSplitHandler: Split tile with value {targetSum} into {count} tiles. " +
+                  $"Base distribution: {baseDistribution}, Low value threshold: {lowValueThreshold}");
+        
+        // Log the final distribution
+        Debug.Log($"TileSplitHandler: Final split values: {string.Join(", ", values)}");
+        
         return values;
     }
 

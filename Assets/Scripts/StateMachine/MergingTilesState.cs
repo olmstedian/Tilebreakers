@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 
 /// <summary>
 /// Merging tiles state - handles tile merging logic.
@@ -61,10 +62,19 @@ public class MergingTilesState : GameState
         yield return new WaitForSeconds(Constants.TILE_MOVE_DURATION);
 
         // Use TileMergeHandler.Instance to perform the merge
-        TileMergeHandler.Instance.MergeTiles(sourceTile, targetTile);
+        bool mergeSuccessful = TileMergeHandler.Instance.MergeTiles(sourceTile, targetTile);
         
         // Remember the position for potential logic after merge
         BoardManager.Instance.lastMergedCellPosition = targetPosition;
+        
+        // Specifically check if the target tile now exceeds splitting threshold
+        if (mergeSuccessful && targetTile != null && targetTile.number > 12)
+        {
+            Debug.Log($"MergingTilesState: Merged tile at {targetPosition} has value {targetTile.number} > 12, will be split");
+            // Make sure this tile position is identified for splitting
+            Vector2Int splitTilePos = targetPosition;
+            TileSplitHandler.RegisterTilesToSplit(new List<Vector2Int>() { splitTilePos });
+        }
 
         // Give a small delay after merging before proceeding
         yield return new WaitForSeconds(0.2f);
@@ -75,12 +85,37 @@ public class MergingTilesState : GameState
 
     private void TransitionToNextState()
     {
-        // Check if there are tiles registered for splitting
-        // For now, proceed directly to post-merge evaluation since we can't check for splits)  // Changed method name to a likely alternative
-        Debug.Log("MergingTilesState: Transitioning to PostMergeEvaluationState.");
-        GameStateManager.Instance?.SetState(new PostMergeEvaluationState());
+        // Find any additional tiles that need to be split (with value > 12)
+        List<Vector2Int> tilesToSplit = TileSplitHandler.FindTilesToSplit();
+        List<Vector2Int> registeredTiles = TileSplitHandler.GetTilesToSplit();
         
-        // Note: This skips the SplittingTilesState since we cannot detect if tiles need splitting.
-        // TODO: Implement proper detection of tiles needing splits when TileSplitHandler is updated.
+        // FIXED: Log more information for debugging the decision
+        Debug.Log($"MergingTilesState: Found {tilesToSplit.Count} tiles to split by scanning, and {registeredTiles.Count} previously registered tiles");
+        
+        // CRITICAL FIX: Preserve already registered tiles when transitioning
+        if (tilesToSplit.Count > 0 || registeredTiles.Count > 0)
+        {
+            // Register newly found tiles without clearing existing ones
+            if (tilesToSplit.Count > 0) {
+                Debug.Log($"MergingTilesState: Adding {tilesToSplit.Count} additional tiles that need splitting.");
+                foreach (var pos in tilesToSplit)
+                {
+                    if (!registeredTiles.Contains(pos))
+                    {
+                        registeredTiles.Add(pos);
+                    }
+                }
+                TileSplitHandler.RegisterTilesToSplit(registeredTiles);
+            }
+            
+            Debug.LogWarning("MergingTilesState: Transitioning to SplittingTilesState for tiles with value > 12.");
+            GameStateManager.Instance?.SetState(new SplittingTilesState());
+        }
+        else
+        {
+            // If no tiles to split, proceed to the post-merge evaluation state
+            Debug.Log("MergingTilesState: No tiles need splitting. Transitioning to PostMergeEvaluationState.");
+            GameStateManager.Instance?.SetState(new PostMergeEvaluationState());
+        }
     }
 }

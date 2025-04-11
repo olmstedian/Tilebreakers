@@ -98,6 +98,13 @@ public class TileMergeHandler : MonoBehaviour
                 animator?.PlayMergeAnimation();
                 BoardManager.Instance.ClearSelection();
                 BoardManager.Instance.ClearAllSelectionState();
+                
+                // CRITICAL FIX: Check if the merged tile needs splitting
+                if (targetTile.number > 12)
+                {
+                    Debug.LogWarning($"TileMergeHandler: High-value tile detected ({targetTile.number}) - going to SplittingTilesState");
+                    GameStateManager.Instance.EnterSplittingTilesState();
+                }
             }
             else
             {
@@ -186,6 +193,17 @@ public class TileMergeHandler : MonoBehaviour
         targetTile.number += originalSourceNumber;
 
         Debug.Log($"TileMergeHandler: Merge result: {originalSourceNumber} + {originalTargetNumber} = {targetTile.number}");
+        
+        // CRITICAL FIX: Immediately register this position for splitting if value > 12
+        if (targetTile.number > 12)
+        {
+            Debug.LogWarning($"TileMergeHandler: Registered high-value tile ({targetTile.number}) at {targetPosition} for splitting");
+            List<Vector2Int> posToSplit = new List<Vector2Int> { targetPosition };
+            TileSplitHandler.RegisterTilesToSplit(posToSplit);
+            
+            // Store this in the BoardManager for reference during state transition
+            BoardManager.Instance.lastMergedCellPosition = targetPosition;
+        }
 
         // Update the target tile's visuals
         targetTile.UpdateVisuals();
@@ -199,7 +217,7 @@ public class TileMergeHandler : MonoBehaviour
 
         // Destroy the source tile using our specialized method
         DestroySourceTileImmediate(sourceTileObject);
-
+        
         // Verify source tile destruction after a short delay
         if (Application.isPlaying)
         {

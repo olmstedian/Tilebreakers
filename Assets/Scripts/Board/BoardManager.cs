@@ -33,9 +33,6 @@ public class BoardManager : MonoBehaviour
         new Color(1f, 1f, 0.5f)    // Light Yellow
     };
 
-    private Tile selectedTile;
-    private Vector2Int selectedTilePosition;
-    private Vector2Int targetTilePosition; // Add this declaration
     public Vector2Int? lastMergedCellPosition;
 
     private List<SpecialTile> specialTiles = new List<SpecialTile>();
@@ -699,500 +696,41 @@ public class BoardManager : MonoBehaviour
         return false; // No valid moves found
     }
 
-    /// <summary>
-    /// Explicitly clears the selection state (selected tile and position)
-    /// </summary>
-    public void ClearSelection()
-    {
-        Debug.Log("BoardManager: Clearing tile selection state");
-        
-        if (selectedTile != null)
-        {
-            selectedTile.ClearSelectionState();
-            selectedTile = null;
-        }
-        
-        selectedTilePosition = Vector2Int.zero;
-        
-        ClearHighlights();
-        ClearSelectionHighlights();
-    }
-
-    /// <summary>
-    /// Clears all selection states, including selected tiles and highlights.
-    /// </summary>
-    public void ClearAllSelectionState()
-    {
-        if (selectedTile != null)
-        {
-            selectedTile.ClearSelectionState();
-            selectedTile = null;
-        }
-
-        selectedTilePosition = Vector2Int.zero;
-        ClearHighlights(); // This already handles "Highlight" tagged objects
-        ClearSelectionHighlights(); // This now uses our component-based approach
-    }
-
     public void HandleTileSelection(Vector2Int gridPosition)
     {
-        // First, verify that we're in WaitingForInputState
-        if (GameStateManager.Instance == null || !GameStateManager.Instance.IsInState<WaitingForInputState>())
-        {
-            Debug.Log("BoardManager: HandleTileSelection aborted - not in WaitingForInputState");
-            return;
-        }
-
-        Debug.Log($"BoardManager: HandleTileSelection called for position {gridPosition}");
-        
-        // First check if this is a special tile and delegate to SpecialTileManager if needed
-        SpecialTile specialTile = SpecialTileManager.Instance?.GetSpecialTileAtPosition(gridPosition);
-        if (specialTile != null)
-        {
-            Debug.Log($"BoardManager: Found special tile '{specialTile.specialAbilityName}' at {gridPosition}. Activating...");
-            specialTile.Activate();
-            return;
-        }
-
-        // Check if we already have a selected tile
-        if (selectedTile != null)
-        {
-            // We have a selected tile, so this click is either selecting another tile or moving to an empty space
-            Tile clickedTile = GetTileAtPosition(gridPosition);
-            
-            if (clickedTile != null)
-            {
-                // Clicking on another tile
-                if (clickedTile == selectedTile)
-                {
-                    // Clicking on the same tile - deselect it
-                    Debug.Log("BoardManager: Deselecting currently selected tile");
-                    ClearSelection();
-                    return;
-                }
-                else
-                {
-                    // Clicking on a different tile - handle potential merge
-                    HandlePotentialMerge(gridPosition, clickedTile);
-                }
-            }
-            else
-            {
-                // Clicking on an empty cell - try to move the selected tile there
-                Debug.Log($"BoardManager: Empty cell clicked at {gridPosition}. Attempting move from {selectedTilePosition}.");
-                HandleTileMoveConfirmation(gridPosition);
-            }
-            return;
-        }
-
-        // No tile is currently selected, so try to select the clicked tile
-        Tile tile = GetTileAtPosition(gridPosition);
-        if (tile != null)
-        {
-            // Select this tile
-            Debug.Log($"BoardManager: Selecting tile at {gridPosition} with number {tile.number} and color {tile.tileColor}");
-            selectedTile = tile;
-            selectedTilePosition = gridPosition;
-            tile.SetState(Tile.TileState.Selected);
-            
-            // Create external selection highlight
-            CreateSelectionHighlight(gridPosition);
-            
-            // Highlight valid moves
-            HighlightValidMoves(gridPosition, tile.number);
-        }
-        else
-        {
-            // Clicked on an empty cell with no selected tile
-            Debug.Log($"BoardManager: Clicked on empty cell at {gridPosition} with no tile selected.");
-            // Clear any lingering selection state just to be safe
-            ClearSelection();
-        }
-    }
-
-    // Helper method to handle potential merges between tiles
-    private void HandlePotentialMerge(Vector2Int gridPosition, Tile targetTile)
-    {
-        Debug.Log($"BoardManager: Already have selected tile at {selectedTilePosition} with number {selectedTile.number}");
-        
-        // Make sure TileMergeHandler is instantiated
-        if (TileMergeHandler.Instance == null)
-        {
-            Debug.LogError("BoardManager: TileMergeHandler.Instance is null! Cannot handle merge.");
-            return;
-        }
-        
-        // Delegate merge handling to TileMergeHandler
-        bool mergeSuccessful = TileMergeHandler.Instance.HandlePotentialMerge(
-            selectedTilePosition, gridPosition, selectedTile, targetTile);
-
-        // Set the target position
-        targetTilePosition = gridPosition;
-
-        // If merge was not successful, select the new tile instead
-        if (!mergeSuccessful)
-        {
-            Debug.Log("BoardManager: Cannot merge - selecting new tile instead");
-            ClearSelection();
-            selectedTile = targetTile;
-            selectedTilePosition = gridPosition;
-            targetTile.SetState(Tile.TileState.Selected);
-            CreateSelectionHighlight(gridPosition);
-            HighlightValidMoves(gridPosition, targetTile.number);
-        }
-    }
-
-    public void HighlightValidMoves(Vector2Int startPosition, int maxSteps)
-    {
-        ClearHighlights();
-        // First highlight valid movement cells
-        Vector2Int[] directions = new Vector2Int[] { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
-        foreach (Vector2Int direction in directions)
-        {
-            for (int step = 1; step <= maxSteps; step++)
-            {
-                Vector2Int targetPosition = startPosition + direction * step;
-                if (!IsWithinBounds(targetPosition)) break;
-                if (IsCellOccupied(targetPosition)) 
-                {
-                    // Found a tile - check if it can be merged
-                    Tile targetTile = GetTileAtPosition(targetPosition);
-                    Tile sourceTile = GetTileAtPosition(startPosition);
-                    
-                    // Skip special tiles as merge targets
-                    if (targetTile != null && targetTile.GetComponent<SpecialTile>() != null)
-                    {
-                        // Mark this as an invalid target with a red highlight
-                        HighlightCellAsInvalidTarget(targetPosition);
-                        break; // Stop highlighting in this direction
-                    }
-                    
-                    // Highlight if same color (mergeable)
-                    if (targetTile != null && sourceTile != null && 
-                        TileMergeHandler.Instance.CompareColors(sourceTile.tileColor, targetTile.tileColor))
-                    {
-                        // Highlight as merge target
-                        HighlightCellAsMergeTarget(targetPosition);
-                    }
-                    else {
-                        // Highlight as blocking tile (non-matching color)
-                        HighlightCellAsBlockingTile(targetPosition);
-                    }
-                    break; // Stop highlighting in this direction
-                }
-                // Highlight as move target
-                HighlightCellAsMoveTarget(targetPosition);
-            }
-        }
-    }
-
-    private void HighlightCellAsMoveTarget(Vector2Int position)
-    {
-        GameObject cellIndicator = Instantiate(cellIndicatorPrefab, GetWorldPosition(position), Quaternion.identity, transform);
-        cellIndicator.tag = "Highlight";
-        SpriteRenderer highlightRenderer = cellIndicator.GetComponent<SpriteRenderer>();
-        if (highlightRenderer != null)
-        {
-            // Use a blue highlight color for movement
-            highlightRenderer.color = new Color(0.4f, 0.8f, 1f, 0.6f);
-            highlightRenderer.material = new Material(Shader.Find("Sprites/Default"));
-            highlightRenderer.material.SetColor("_Color", highlightRenderer.color);
-            // Make it slightly smaller than the cell to create a nice border effect
-            cellIndicator.transform.localScale = new Vector3(cellSize * 0.9f, cellSize * 0.9f, 1f);
-            // Add pulsing animation for the highlight
-            LeanTween.scale(cellIndicator, new Vector3(cellSize * 0.95f, cellSize * 0.95f, 1f), 0.6f)
-                .setEaseInOutSine()
-                .setLoopPingPong();
-            // Animate the opacity for better visibility
-            LeanTween.alpha(cellIndicator, 0.4f, 0.8f)
-                .setEaseInOutSine()
-                .setLoopPingPong();
-        }
-    }
-
-    private void HighlightCellAsMergeTarget(Vector2Int position)
-    {
-        GameObject cellIndicator = Instantiate(cellIndicatorPrefab, GetWorldPosition(position), Quaternion.identity, transform);
-        cellIndicator.tag = "Highlight";
-        SpriteRenderer highlightRenderer = cellIndicator.GetComponent<SpriteRenderer>();
-        if (highlightRenderer != null)
-        {
-            // Use a golden/orange highlight color for merge targets
-            highlightRenderer.color = new Color(1f, 0.7f, 0.2f, 0.7f);
-            highlightRenderer.material = new Material(Shader.Find("Sprites/Default"));
-            highlightRenderer.material.SetColor("_Color", highlightRenderer.color);
-            // Make it slightly larger and with more distinct animation for merge targets
-            cellIndicator.transform.localScale = new Vector3(cellSize * 0.95f, cellSize * 0.95f, 1f);
-            // Add more dynamic pulsing animation for merge targets
-            LeanTween.scale(cellIndicator, new Vector3(cellSize * 1.05f, cellSize * 1.05f, 1f), 0.4f)
-                .setEaseInOutSine()
-                .setLoopPingPong();
-            // More vibrant opacity animation for merge targets
-            LeanTween.alpha(cellIndicator, 0.9f, 0.6f)
-                .setEaseInOutSine()
-                .setLoopPingPong();
-            // Add a rotation effect for extra emphasis
-            LeanTween.rotateZ(cellIndicator, 10f, 1.5f)
-                .setEaseInOutSine()
-                .setLoopPingPong();
-        }
-    }
-
-    // Add a new method to highlight invalid targets
-    private void HighlightCellAsInvalidTarget(Vector2Int position)
-    {
-        GameObject cellIndicator = Instantiate(cellIndicatorPrefab, GetWorldPosition(position), Quaternion.identity, transform);
-        cellIndicator.tag = "Highlight";
-        
-        SpriteRenderer highlightRenderer = cellIndicator.GetComponent<SpriteRenderer>();
-        if (highlightRenderer != null)
-        {
-            // Red highlight color for invalid targets
-            highlightRenderer.color = new Color(1f, 0.3f, 0.3f, 0.5f);
-            highlightRenderer.material = new Material(Shader.Find("Sprites/Default"));
-            highlightRenderer.material.SetColor("_Color", highlightRenderer.color);
-            
-            // Add tooltip GameObject with text
-            GameObject tooltip = new GameObject("InvalidMergeTooltip");
-            tooltip.transform.SetParent(cellIndicator.transform);
-            tooltip.transform.localPosition = new Vector3(0, 0.75f, -0.1f);
-            
-            // Add TextMesh component for the tooltip
-            TMPro.TextMeshPro tooltipText = tooltip.AddComponent<TMPro.TextMeshPro>();
-            tooltipText.text = "Cannot merge with\nspecial tiles";
-            tooltipText.fontSize = 2f;
-            tooltipText.alignment = TMPro.TextAlignmentOptions.Center;
-            tooltipText.color = Color.white;
-            tooltipText.outlineWidth = 0.2f;
-            tooltipText.outlineColor = Color.black;
-            
-            // Slightly smaller outline around the special tile
-            cellIndicator.transform.localScale = new Vector3(cellSize * 0.85f, cellSize * 0.85f, 1f);
-            
-            // Add a subtle animation to draw attention
-            LeanTween.rotateZ(cellIndicator, 10f, 1.5f)
-                .setEaseInOutSine()
-                .setLoopPingPong();
-            
-            // Animate tooltip
-            LeanTween.moveLocalY(tooltip, 0.9f, 1f)
-                .setEaseInOutSine()
-                .setLoopPingPong();
-        }
-    }
-
-    // Add a new method to highlight blocking tiles (non-matching color)
-    private void HighlightCellAsBlockingTile(Vector2Int position)
-    {
-        GameObject cellIndicator = Instantiate(cellIndicatorPrefab, GetWorldPosition(position), Quaternion.identity, transform);
-        cellIndicator.tag = "Highlight";
-        
-        SpriteRenderer highlightRenderer = cellIndicator.GetComponent<SpriteRenderer>();
-        if (highlightRenderer != null)
-        {
-            // Gray highlight for non-matching color tiles
-            highlightRenderer.color = new Color(0.5f, 0.5f, 0.5f, 0.4f);
-            highlightRenderer.material = new Material(Shader.Find("Sprites/Default"));
-            highlightRenderer.material.SetColor("_Color", highlightRenderer.color);
-            
-            // Slightly smaller outline around the tile
-            cellIndicator.transform.localScale = new Vector3(cellSize * 0.85f, cellSize * 0.85f, 1f);
-            
-            // No animation needed for blocking tiles - just static highlight
-        }
-    }
-
-    public void ClearHighlights()
-    {
-        // First, find all highlights using FindObjectsOfType for a more thorough search
-        GameObject[] allHighlights = GameObject.FindGameObjectsWithTag("Highlight");
-        foreach (GameObject highlight in allHighlights)
-        {
-            Destroy(highlight);
-        }
-        // Also make sure we clear any SelectionHighlightIdentifier objects
-        ClearSelectionHighlights();
-        // Then also check children as a backup (in case tag-based search misses any)
-        foreach (Transform child in transform)
-        {
-            if (child.CompareTag("Highlight") || child.GetComponent<SelectionHighlightIdentifier>() != null)
-            {
-                Destroy(child.gameObject);
-            }
-        }
-        // Finally check the scene for any strays
-        foreach (GameObject obj in GameObject.FindObjectsOfType<GameObject>())
-        {
-            if (obj.CompareTag("Highlight"))
-            {
-                Destroy(obj);
-            }
-        }
+        TileSelectionHandler.Instance?.HandleTileSelection(gridPosition);
     }
 
     public void HandleTileMoveConfirmation(Vector2Int targetPosition)
     {
-        // First, verify that we're in WaitingForInputState
-        if (GameStateManager.Instance == null || !GameStateManager.Instance.IsInState<WaitingForInputState>())
-        {
-            Debug.Log("BoardManager: HandleTileMoveConfirmation aborted - not in WaitingForInputState");
-            return;
-        }
-
-        if (selectedTile == null)
-        {
-            Debug.LogWarning("BoardManager: HandleTileMoveConfirmation called with no selected tile");
-            return;
-        }
-
-        if (!IsWithinBounds(targetPosition))
-        {
-            Debug.LogWarning($"BoardManager: HandleTileMoveConfirmation called with out-of-bounds position {targetPosition}");
-            return;
-        }
-
-        // If the clicked cell is the same as the selected tile's cell, do nothing.
-        if (targetPosition == selectedTilePosition)
-        {
-            Debug.Log($"BoardManager: Target position {targetPosition} is the same as selected tile position. No movement needed.");
-            return;
-        }
-
-        Debug.Log($"BoardManager: Checking movement from {selectedTilePosition} to {targetPosition}");
-        
-        // Use TileMovementHandler to validate the move
-        bool pathClear;
-        bool isValidMove = TileMovementHandler.Instance.IsValidMove(selectedTilePosition, targetPosition, selectedTile, out pathClear);
-        
-        if (isValidMove)
-        {
-            if (IsCellOccupied(targetPosition))
-            {
-                Tile targetTile = GetTileAtPosition(targetPosition);
-                // Use TileMergeHandler to check if colors match
-                if (targetTile != null && TileMergeHandler.Instance.CompareColors(selectedTile.tileColor, targetTile.tileColor))
-                {
-                    // Store references before clearing selection
-                    Tile sourceTile = selectedTile;
-                    Vector2Int sourcePos = selectedTilePosition;
-
-                    // Merge operation
-                    Debug.Log($"BoardManager: Target cell at {targetPosition} has a compatible tile. Merging...");
-                    
-                    ClearAllSelectionState(); // Clear selection UI first
-                    
-                    // Use TileMergeHandler instead
-                    TileMergeHandler.Instance.PerformMergeOperation(sourceTile, targetTile, sourcePos, targetPosition);
-                }
-                else
-                {
-                    Debug.Log($"BoardManager: Target cell at {targetPosition} has an incompatible tile. Movement aborted.");
-                    return;
-                }
-            }
-            else
-            {
-                // Target cell is empty, perform movement
-                Debug.Log($"BoardManager: Moving tile from {selectedTilePosition} to empty cell at {targetPosition}");
-                
-                // Store a reference to the selected tile before clearing selection
-                Tile tileToMove = selectedTile;
-                Vector2Int startPos = selectedTilePosition;
-                
-                ClearAllSelectionState(); // Clear selection UI first
-                
-                // Now perform the move operation using TileMovementHandler
-                TileMovementHandler.Instance.MoveTile(tileToMove, startPos, targetPosition);
-                GameManager.Instance.EndTurn();
-            }
-        }
-        else
-        {
-            Debug.LogWarning($"BoardManager: Invalid move from {selectedTilePosition} to {targetPosition}");
-        }
-
-        // Set the target position
-        targetTilePosition = targetPosition;
+        TileSelectionHandler.Instance?.HandleTileMoveConfirmation(targetPosition);
     }
 
-    // Improved color comparison method with tolerance for floating point precision
-    private IEnumerator PerformMerge(Tile sourceTile, Tile targetTile, Vector2Int sourcePos, Vector2Int targetPos)
+    public void ClearSelection()
     {
-        // Use TileMovementHandler instead of TileMover
-        yield return TileMovementHandler.Instance.MoveTile(sourceTile.gameObject, targetTile.transform.position, Constants.TILE_MOVE_DURATION);
-        
-        // Now do the actual merge and update the board state
-        if (TileMergeHandler.Instance.MergeTiles(targetTile, sourceTile))
-        {
-            // Play a merge animation on the target tile
-            TileAnimator animator = targetTile.GetComponent<TileAnimator>();
-            if (animator != null)
-            {
-                animator.PlayMergeAnimation();
-            }
-        }
+        TileSelectionHandler.Instance?.ClearSelection();
     }
 
-    /// <summary>
-    /// Registers a tile that was created from splitting at the given position.
-    /// </summary>
-    public void RegisterSplitTile(Vector2Int position, Tile tile)
+    public void ClearAllSelectionState()
     {
-        // Skip invalid positions
-        if (!IsWithinBounds(position))
-        {
-            return;
-        }
-
-        // Make sure we're not putting a tile in an occupied cell
-        if (board[position.x, position.y] != null)
-        {
-            return;
-        }
-
-        // Add the tile to the board at the specified position
-        SetTileAtPosition(position, tile);
-        // Mark the cell as occupied so it's not used for spawning
-        emptyCells.Remove(position);
-        // Ensure the tile is positioned correctly in world space
-        tile.transform.position = GetWorldPosition(position);
-        // Verify the tile's values and text component
-        var textComp = tile.GetComponentInChildren<TMPro.TextMeshPro>();
-        if (textComp != null)
-        {
-            // Ensure the text matches the tile's number
-            if (textComp.text != tile.number.ToString())
-            {
-                textComp.text = tile.number.ToString();
-            }
-            textComp.ForceMeshUpdate();
-        }
-        // Update the tile's visuals one more time to ensure everything is set up correctly
-        tile.UpdateVisuals();
+        TileSelectionHandler.Instance?.ClearAllSelectionState();
     }
 
-    private void HighlightCell(Vector2Int position)
+    public void ClearHighlights()
     {
-        GameObject cellIndicator = Instantiate(cellIndicatorPrefab, GetWorldPosition(position), Quaternion.identity, transform);
-        cellIndicator.tag = "Highlight";
-        SpriteRenderer highlightRenderer = cellIndicator.GetComponent<SpriteRenderer>();
-        if (highlightRenderer != null)
-        {
-            // Use a general highlight color (between move and merge colors)
-            highlightRenderer.color = new Color(0.7f, 0.7f, 1f, 0.6f);
-            highlightRenderer.material = new Material(Shader.Find("Sprites/Default"));
-            highlightRenderer.material.SetColor("_Color", highlightRenderer.color);
-            // Make it slightly smaller than the cell to create a nice border effect
-            cellIndicator.transform.localScale = new Vector3(cellSize * 0.9f, cellSize * 0.9f, 1f);
-            // Add pulsing animation for the highlight
-            LeanTween.scale(cellIndicator, new Vector3(cellSize * 0.95f, cellSize * 0.95f, 1f), 0.6f)
-                .setEaseInOutSine()
-                .setLoopPingPong();
-            // Animate the opacity for better visibility
-            LeanTween.alpha(cellIndicator, 0.4f, 0.8f)
-                .setEaseInOutSine()
-                .setLoopPingPong();
-        }
+        TileSelectionHandler.Instance?.ClearHighlights();
+    }
+
+    public Vector2Int GetSelectedTilePosition()
+    {
+        return TileSelectionHandler.Instance != null ? 
+            TileSelectionHandler.Instance.GetSelectedTilePosition() : Vector2Int.zero;
+    }
+
+    public Vector2Int GetTargetTilePosition()
+    {
+        return TileSelectionHandler.Instance != null ? 
+            TileSelectionHandler.Instance.GetTargetTilePosition() : Vector2Int.zero;
     }
 
     public void ClearBoard()
@@ -1287,7 +825,23 @@ public class BoardManager : MonoBehaviour
 
     public void PerformSplitOperation(Tile tile, Vector2Int position)
     {
+        // Make sure the tile actually needs splitting (value > 12)
+        if (tile == null || tile.number <= 12)
+        {
+            Debug.LogWarning($"BoardManager: PerformSplitOperation called for tile at {position} with value {(tile != null ? tile.number.ToString() : "null")}. Tile doesn't need splitting (value <= 12)");
+            return;
+        }
+        
+        Debug.Log($"BoardManager: Delegating split operation to TileSplitHandler for tile at {position} with value {tile.number}");
         TileSplitHandler.PerformSplitOperation(tile, position);
+        
+        // Verify that the original tile has been removed after splitting
+        if (GetTileAtPosition(position) == tile)
+        {
+            Debug.LogWarning($"BoardManager: After splitting, original tile at {position} still exists! Manually removing it.");
+            ClearCell(position);
+            Destroy(tile.gameObject);
+        }
     }
 
     /// <summary>
@@ -1744,62 +1298,7 @@ public class BoardManager : MonoBehaviour
     /// <returns>True if a tile is selected, false otherwise</returns>
     public bool HasSelectedTile()
     {
-        return selectedTile != null;
-    }
-
-    /// <summary>
-    /// Creates a visual highlight around a selected tile.
-    /// </summary>
-    private void CreateSelectionHighlight(Vector2Int position)
-    {
-        // Only create highlights when in WaitingForInputState
-        if (GameStateManager.Instance == null || !GameStateManager.Instance.IsInState<WaitingForInputState>())
-        {
-            Debug.Log("BoardManager: CreateSelectionHighlight aborted - not in WaitingForInputState");
-            return;
-        }
-
-        GameObject highlight = new GameObject($"Selection_{position.x}_{position.y}");
-        // Change the tag to "Highlight" which should already be defined in your project
-        highlight.tag = "Highlight";
-        highlight.transform.position = GetWorldPosition(position);
-        highlight.transform.SetParent(transform);
-
-        // Add a component we can use to identify it as a selection highlight
-        highlight.AddComponent<SelectionHighlightIdentifier>();
-        SpriteRenderer renderer = highlight.AddComponent<SpriteRenderer>();
-        renderer.sprite = selectedTile.GetComponent<SpriteRenderer>().sprite;
-        renderer.color = new Color(1f, 0.8f, 0.2f, 0.6f); // Golden highlight
-        renderer.sortingOrder = -1; // Just behind the tile
-
-        // Make the selection larger than the tile
-        highlight.transform.localScale = new Vector3(cellSize * 1.2f, cellSize * 1.2f, 1f);
-
-        // Animate the selection
-        LeanTween.rotateZ(highlight, 360f, 4f).setLoopClamp();
-        LeanTween.scale(highlight, new Vector3(cellSize * 1.3f, cellSize * 1.3f, 1f), 0.7f)
-                .setEaseInOutSine()
-                .setLoopPingPong();
-
-        // Use a shader for glow effect if available
-        if (renderer.material != null && renderer.material.HasProperty("_GlowIntensity"))
-        {
-            renderer.material.SetFloat("_GlowIntensity", 0.3f);
-            renderer.material.SetColor("_GlowColor", new Color(1f, 0.9f, 0.5f));
-        }
-    }
-
-    /// <summary>
-    /// Clears all highlights related to tile selection.
-    /// </summary>
-    private void ClearSelectionHighlights()
-    {
-        // Find all objects with our identifier component instead of by tag
-        SelectionHighlightIdentifier[] highlights = FindObjectsOfType<SelectionHighlightIdentifier>();
-        foreach (var highlight in highlights)
-        {
-            Destroy(highlight.gameObject);
-        }
+        return TileSelectionHandler.Instance != null && TileSelectionHandler.Instance.HasSelectedTile();
     }
 
     /// <summary>
@@ -1812,28 +1311,52 @@ public class BoardManager : MonoBehaviour
         return targetTile == null || TileMergeHandler.Instance.CompareColors(tile.tileColor, targetTile.tileColor);
     }
 
-    // Add these accessor methods to get the selected and target tile positions
-    public Vector2Int GetSelectedTilePosition()
+    /// <summary>
+    /// Registers a tile that was created from splitting at the given position.
+    /// </summary>
+    public void RegisterSplitTile(Vector2Int position, Tile tile)
     {
-        return selectedTilePosition;
-    }
-
-    public Vector2Int GetTargetTilePosition()
-    {
-        // If no target position has been set, return an invalid position or selectedTilePosition
-        if (targetTilePosition == default(Vector2Int))
+        // Skip invalid positions
+        if (!IsWithinBounds(position))
         {
-            Debug.LogWarning("BoardManager: targetTilePosition has not been set yet.");
-            return selectedTilePosition; // Return selected position as fallback
+            Debug.LogWarning($"BoardManager: Attempted to register split tile at out-of-bounds position {position}");
+            return;
         }
-        return targetTilePosition;
-    }
-}
 
-/// <summary>
-/// Simple component to identify objects that are selection highlights.
-/// </summary>
-public class SelectionHighlightIdentifier : MonoBehaviour
-{
-    // This is an empty marker component
+        // Make sure we're not putting a tile in an occupied cell
+        if (GetTileAtPosition(position) != null)
+        {
+            Debug.LogWarning($"BoardManager: Attempted to register split tile at occupied position {position}");
+            return;
+        }
+
+        // Add the tile to the board at the specified position
+        SetTileAtPosition(position, tile);
+        
+        // Mark the cell as occupied so it's not used for spawning
+        if (emptyCells.Contains(position))
+        {
+            emptyCells.Remove(position);
+        }
+        
+        // Ensure the tile is positioned correctly in world space
+        tile.transform.position = GetWorldPosition(position);
+        
+        // Verify the tile's values and text component
+        var textComp = tile.GetComponentInChildren<TMPro.TextMeshPro>();
+        if (textComp != null)
+        {
+            // Ensure the text matches the tile's number
+            if (textComp.text != tile.number.ToString())
+            {
+                textComp.text = tile.number.ToString();
+            }
+            textComp.ForceMeshUpdate();
+        }
+        
+        // Update the tile's visuals one more time to ensure everything is set up correctly
+        tile.UpdateVisuals();
+        
+        Debug.Log($"BoardManager: Registered split tile with value {tile.number} at position {position}");
+    }
 }

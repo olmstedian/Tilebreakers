@@ -23,11 +23,11 @@ public class SplittingTilesState : GameState
     {
         // Get all tiles registered for splitting
         List<Vector2Int> tilesToSplit = TileSplitHandler.GetTilesToSplit();
-        Debug.Log($"SplittingTilesState: Processing {tilesToSplit.Count} tiles to split");
+        Debug.LogWarning($"SplittingTilesState: Processing {tilesToSplit.Count} registered tiles to split");
         
         if (tilesToSplit.Count == 0)
         {
-            Debug.LogWarning("SplittingTilesState: No tiles to split were registered");
+            Debug.LogError("SplittingTilesState: No tiles to split were registered! This should not happen.");
             TransitionToNextState();
             yield break;
         }
@@ -37,18 +37,28 @@ public class SplittingTilesState : GameState
         {
             Tile tile = BoardManager.Instance.GetTileAtPosition(position);
             
-            if (tile != null && tile.number > 12)
+            if (tile != null)
             {
-                Debug.Log($"SplittingTilesState: Splitting tile at {position} with value {tile.number}");
-                // Use TileSplitHandler instead of TileSplitter
-                TileSplitHandler.PerformSplitOperation(tile, position);
+                Debug.LogWarning($"SplittingTilesState: About to split tile at {position} with value {tile.number}");
                 
-                // Add a delay between splits for better visual feedback
-                yield return new WaitForSeconds(splitDelay);
+                // Additional check to ensure we're splitting valid tiles
+                if (tile.number > 12)
+                {
+                    Debug.Log($"SplittingTilesState: Splitting tile at {position} with value {tile.number}");
+                    // Use TileSplitHandler to perform the splitting
+                    TileSplitHandler.PerformSplitOperation(tile, position);
+                    
+                    // Add a delay between splits for better visual feedback
+                    yield return new WaitForSeconds(splitDelay);
+                }
+                else 
+                {
+                    Debug.LogError($"SplittingTilesState: Tile at {position} has value {tile.number} <= 12, skipping split");
+                }
             }
             else
             {
-                Debug.LogWarning($"SplittingTilesState: Tile at {position} is not valid for splitting or no longer exists");
+                Debug.LogWarning($"SplittingTilesState: Tile at {position} no longer exists or is invalid");
             }
         }
         

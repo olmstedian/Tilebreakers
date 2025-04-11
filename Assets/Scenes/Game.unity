@@ -3268,16 +3268,16 @@ MonoBehaviour:
   m_GameObject: {fileID: 1143691675}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9b7c2222188984a488ab5c06db5f3bc4, type: 3}
+  m_Script: {fileID: 11500000, guid: 5ab152b37ac374bb4aec73d48d444659, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  width: 5
-  height: 5
+  width: 6
+  height: 6
   cellSize: 1.5
   tilePrefab: {fileID: 2294095823878119490, guid: b029b3fb8ad4240729ae547a800ef8e6, type: 3}
   cellIndicatorPrefab: {fileID: 6235500655562812460, guid: 20eef428882ae4850a5d860694cd5d67, type: 3}
   gridBackgroundPrefab: {fileID: 7062646120094328666, guid: 24f57b58011b14eaeb068e4a2ebd72ee, type: 3}
-  gridBackgroundColor: {r: 0.52064794, g: 0.52064794, b: 0.5660378, a: 1}
+  gridBackgroundColor: {r: 0.2, g: 0.2, b: 0.25, a: 1}
   gridLineColor: {r: 0.3, g: 0.3, b: 0.35, a: 1}
   gridLineWidth: 0.05
   useRoundedCorners: 1
@@ -5162,11 +5162,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1ba5904d86a914d75a3cfed45eef367d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  levelCompleteSound: {fileID: 0}
-  levelFailedSound: {fileID: 0}
-  gameCompleteSound: {fileID: 0}
-  volume: 1
-  useSoundEffects: 1
 --- !u!1 &1804519712
 GameObject:
   m_ObjectHideFlags: 0
@@ -6313,9 +6308,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fa0ad56f657e74920829ee9e38784129, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  gameStateManagerPrefab: {fileID: 8752933417165532727, guid: 748ea60b3bff0496d853b6a0ba41cce5, type: 3}
-  gameOverManagerPrefab: {fileID: 221348994398335111, guid: 3ad8334c4cc6c4da0a1fcdb1985fd2a7, type: 3}
+  gameStateManagerPrefab: {fileID: 700788436314823959, guid: fcb744d10f581447fbc857ae88d02171, type: 3}
+  gameOverManagerPrefab: {fileID: 2795468765510382173, guid: 68e487fc87f5c4f53acd1a5ef4407226, type: 3}
   gridManagerPrefab: {fileID: 7586044458312527570, guid: 00d4bbfaf0e8e484ab5d45eca53cd211, type: 3}
+  tileMovementHandlerPrefab: {fileID: 2836597515519957421, guid: 391c54f76c145457a88c2365239def41, type: 3}
 --- !u!4 &2091640133
 Transform:
   m_ObjectHideFlags: 0
