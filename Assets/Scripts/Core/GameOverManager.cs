@@ -102,7 +102,7 @@ public class GameOverManager : MonoBehaviour
                     if (BoardManager.Instance.IsWithinBounds(neighborPos))
                     {
                         Tile neighbor = BoardManager.Instance.GetTileAtPosition(neighborPos);
-                        if (neighbor == null || BoardManager.Instance.CompareColors(current.tileColor, neighbor.tileColor))
+                        if (neighbor == null || TileMergeHandler.Instance.CompareColors(current.tileColor, neighbor.tileColor))
                         {
                             return true; // A valid move or merge is possible
                         }

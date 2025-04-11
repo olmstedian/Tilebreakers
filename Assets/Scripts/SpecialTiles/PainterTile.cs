@@ -160,7 +160,7 @@ public class PainterTile : SpecialTile
                     Color originalColor = adjacentTile.tileColor;
                     
                     // If the tile already has the same color, skip it
-                    if (BoardManager.Instance.CompareColors(originalColor, painterTile.tileColor))
+                    if (TileMergeHandler.Instance.CompareColors(originalColor, painterTile.tileColor))
                     {
                         Debug.Log($"PainterTile: Tile at {pos} already has the same color, skipping.");
                         continue;

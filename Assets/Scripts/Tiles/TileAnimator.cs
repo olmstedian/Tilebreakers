@@ -64,8 +64,8 @@ public class TileAnimator : MonoBehaviour
         // Lower the sorting order during movement
         if (spriteRenderer != null)
         {
-            TileSortingManager.StoreOriginalSortingOrder(gameObject);
-            TileSortingManager.SetAnimationSortingOrder(gameObject);
+            TileMovementHandler.Instance.StoreSortingOrder(gameObject, spriteRenderer.sortingOrder);
+            TileMovementHandler.Instance.SetAnimationSortingOrder(gameObject, spriteRenderer);
         }
         
         // Start the movement animation
@@ -105,7 +105,7 @@ public class TileAnimator : MonoBehaviour
     
     private IEnumerator MoveAnimationSequence(float duration)
     {
-        // Wait for the specified duration (the actual movement is handled by TileMover)
+        // Wait for the specified duration (the actual movement is handled by TileMovementHandler)
         yield return new WaitForSeconds(duration);
         
         isMoveAnimationPlaying = false;
@@ -113,7 +113,7 @@ public class TileAnimator : MonoBehaviour
         // Restore original sorting order
         if (spriteRenderer != null)
         {
-            TileSortingManager.RestoreSortingOrder(gameObject);
+            TileMovementHandler.Instance.RestoreSortingOrder(gameObject, spriteRenderer);
         }
         
         // Set the tile state back to Idle

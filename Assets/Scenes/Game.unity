@@ -5127,7 +5127,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1779053741}
-  - component: {fileID: 1779053740}
+  - component: {fileID: 1779053742}
   m_Layer: 0
   m_Name: AudioManager
   m_TagString: Untagged
@@ -5135,24 +5135,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1779053740
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1779053739}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0836cf69addb5474eb01feb74784b614, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  levelCompleteSound: {fileID: 8300000, guid: ca74ccac8f81048db910204c801f21d1, type: 3}
-  levelFailedSound: {fileID: 8300000, guid: 5fc8dfbcccf2640bf9f9e94ed483e450, type: 3}
-  gameCompleteSound: {fileID: 8300000, guid: 5e4fda6d71d2e40dbbc45604328d1b7d, type: 3}
-  volume: 1
-  useSoundEffects: 1
-  audioSource: {fileID: 0}
 --- !u!4 &1779053741
 Transform:
   m_ObjectHideFlags: 0
@@ -5168,6 +5150,23 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1779053742
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1779053739}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1ba5904d86a914d75a3cfed45eef367d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  levelCompleteSound: {fileID: 0}
+  levelFailedSound: {fileID: 0}
+  gameCompleteSound: {fileID: 0}
+  volume: 1
+  useSoundEffects: 1
 --- !u!1 &1804519712
 GameObject:
   m_ObjectHideFlags: 0
@@ -6141,12 +6140,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 2055188549}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ebd48e69caa3f47ea8eb3223f3f6314c, type: 3}
+  m_Script: {fileID: 11500000, guid: 22d9d83f55d5141a49ea65f014983329, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  <touchPosition>k__BackingField: {x: 0, y: 0}
-  isSelecting: 0
-  tileWasSelected: 0
 --- !u!4 &2055188551
 Transform:
   m_ObjectHideFlags: 0

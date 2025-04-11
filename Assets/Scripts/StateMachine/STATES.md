@@ -32,6 +32,7 @@ The state classes are organized in the `StateMachine` folder:
 ├── WaitingForInputState.cs        // Waiting for player input
 ├── MovingTilesState.cs            // Animating tile movements
 ├── MergingTilesState.cs           // Merging tiles
+├── PostMergeEvaluationState.cs    // Evaluating tiles that need splitting
 ├── SplittingTilesState.cs         // Splitting tiles
 ├── SpawningNewTileState.cs        // Spawning new tiles
 ├── SpecialTileActionState.cs      // Special tile activation
@@ -75,6 +76,10 @@ The state classes are organized in the `StateMachine` folder:
       │                        ▼                          │
       │              ┌───────────────────┐                │
       │              │ MergingTilesState │                │
+      │              └─────────┬─────────┘                │
+      │                        ▼                          │
+      │              ┌───────────────────┐                │
+      │              │PostMergeEvaluation│                │
       │              └─────────┬─────────┘                │
       │                        ▼                          │
       │              ┌───────────────────┐                │
@@ -144,6 +149,10 @@ The `GameStateManager` class is responsible for managing state transitions:
 ### MergingTilesState
 - Handles tile merging logic.
 - Updates score.
+- Transitions to `PostMergeEvaluationState`.
+
+### PostMergeEvaluationState
+- Evaluates tiles that need splitting.
 - Transitions to `SplittingTilesState`.
 
 ### SplittingTilesState

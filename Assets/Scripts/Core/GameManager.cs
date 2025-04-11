@@ -7,29 +7,60 @@ public class GameManager : MonoBehaviour
     public static GameManager Instance;
 
     [SerializeField] private GameObject gameStateManagerPrefab;
-    // Remove the specialTileUIPrefab reference
     [SerializeField] private GameObject gameOverManagerPrefab; // Add a reference to the GameOverManager prefab
     [SerializeField] private GameObject gridManagerPrefab;
+    [SerializeField] private GameObject tileMovementHandlerPrefab; // Add reference to TileMovementHandler prefab
 
     private void Awake()
     {
         if (Instance == null) Instance = this;
         else Destroy(gameObject);
 
-        if (GameStateManager.Instance == null && gameStateManagerPrefab != null)
+        // Check if GameStateManager exists before instantiating the prefab
+        if (GameStateManager.Instance == null)
         {
-            Instantiate(gameStateManagerPrefab);
+            if (gameStateManagerPrefab != null)
+            {
+                Debug.Log("GameManager: Creating GameStateManager instance from prefab");
+                Instantiate(gameStateManagerPrefab);
+            }
+            else
+            {
+                Debug.LogError("GameManager: GameStateManager prefab is not assigned in the inspector!");
+                
+                // Fallback: Try to create a GameStateManager instance directly
+                GameObject gsm = new GameObject("GameStateManager");
+                gsm.AddComponent<GameStateManager>();
+                Debug.LogWarning("GameManager: Created a GameStateManager without using prefab.");
+            }
         }
 
-        // Ensure GameOverManager is instantiated
-        if (GameOverManager.Instance == null && gameOverManagerPrefab != null)
+        // Check if GameOverManager exists before instantiating the prefab
+        if (GameOverManager.Instance == null)
         {
-            Instantiate(gameOverManagerPrefab);
-            Debug.Log("GameManager: GameOverManager instantiated successfully.");
+            if (gameOverManagerPrefab != null)
+            {
+                Debug.Log("GameManager: Creating GameOverManager instance from prefab");
+                Instantiate(gameOverManagerPrefab);
+            }
+            else
+            {
+                Debug.LogError("GameManager: GameOverManager prefab is not assigned in the inspector!");
+            }
         }
-        else if (GameOverManager.Instance == null)
+
+        // Check if TileMovementHandler exists before instantiating the prefab
+        if (TileMovementHandler.Instance == null)
         {
-            Debug.LogError("GameManager: GameOverManager prefab is missing. Ensure it is assigned in the inspector.");
+            if (tileMovementHandlerPrefab != null)
+            {
+                Debug.Log("GameManager: Creating TileMovementHandler instance from prefab");
+                Instantiate(tileMovementHandlerPrefab);
+            }
+            else
+            {
+                Debug.LogError("GameManager: TileMovementHandler prefab is not assigned in the inspector!");
+            }
         }
 
         // Ensure all special tile prefabs are assigned
@@ -58,8 +89,6 @@ public class GameManager : MonoBehaviour
         }
 
         GameStateManager.Instance?.SetState(new BootState());
-
-        // Remove initialization of SpecialTileUI
 
         // Load the first level using LevelManager
         if (LevelManager.Instance != null)

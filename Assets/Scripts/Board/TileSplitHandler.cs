@@ -1,24 +1,66 @@
 using UnityEngine;
 using System.Collections.Generic;
 
-public class TileSplitter : MonoBehaviour
+public class TileSplitHandler : MonoBehaviour
 {
+    // Singleton instance
+    public static TileSplitHandler Instance;
+    
+    private static List<Vector2Int> registeredTilesToSplit = new List<Vector2Int>();
+    
+    [SerializeField] private ParticleSystem splitEffect;
+    [SerializeField] [Range(0f, 1f)] private float specialTileSpawnChance = Constants.SPECIAL_TILE_CHANCE;
+
+    private void Awake()
+    {
+        if (Instance == null)
+        {
+            Instance = this;
+        }
+        else
+        {
+            Destroy(gameObject);
+        }
+    }
+
     /// <summary>
-    /// Splits a tile into multiple smaller tiles with random values and colors.
-    /// The sum of the new tile values equals the original tile value.
-    /// New tiles are placed in random available positions on the board.
+    /// Register tiles that need to be split, called from PostMergeEvaluationState
     /// </summary>
-    /// <param name="tile">The tile to split</param>
-    /// <param name="originalPosition">Grid position of the original tile</param>
-    public static void SplitTile(Tile tile, Vector2Int originalPosition)
+    public static void RegisterTilesToSplit(List<Vector2Int> positions)
+    {
+        registeredTilesToSplit.Clear();
+        registeredTilesToSplit.AddRange(positions);
+        Debug.Log($"TileSplitHandler: Registered {positions.Count} tiles for splitting");
+    }
+
+    /// <summary>
+    /// Get all registered tiles to split
+    /// </summary>
+    public static List<Vector2Int> GetTilesToSplit()
+    {
+        return new List<Vector2Int>(registeredTilesToSplit);
+    }
+
+    /// <summary>
+    /// Clear all registered tiles after processing
+    /// </summary>
+    public static void ClearRegisteredTiles()
+    {
+        registeredTilesToSplit.Clear();
+    }
+    
+    /// <summary>
+    /// Performs a split operation on the specified tile at the given position.
+    /// </summary>
+    public static void PerformSplitOperation(Tile tile, Vector2Int originalPosition)
     {
         if (tile == null || !BoardManager.Instance.IsWithinBounds(originalPosition))
         {
-            Debug.LogError($"TileSplitter: Invalid split operation. Tile: {tile}, Position: {originalPosition}");
+            Debug.LogError($"TileSplitHandler: Invalid split operation. Tile: {tile}, Position: {originalPosition}");
             return;
         }
 
-        Debug.Log($"TileSplitter: Splitting tile at {originalPosition} with value {tile.number}.");
+        Debug.Log($"TileSplitHandler: Splitting tile at {originalPosition} with value {tile.number}.");
 
         int originalValue = tile.number;
         Color originalColor = tile.tileColor;
@@ -37,7 +79,7 @@ public class TileSplitter : MonoBehaviour
         splitCount = Mathf.Min(splitCount, availablePositions.Count);
         if (splitCount < 2)
         {
-            Debug.LogWarning("TileSplitter: Not enough available positions to split the tile.");
+            Debug.LogWarning("TileSplitHandler: Not enough available positions to split the tile.");
 
             // Trigger game-over check
             GameOverManager.Instance?.CheckGameOver();
@@ -55,7 +97,7 @@ public class TileSplitter : MonoBehaviour
             int value = splitValues[i];
             Color randomColor = global::BoardManager.Instance.GetRandomTileColor(); // resolved ambiguity
 
-            Debug.Log($"TileSplitter: Creating tile at {spawnPos} with value {value} and color {randomColor}.");
+            Debug.Log($"TileSplitHandler: Creating tile at {spawnPos} with value {value} and color {randomColor}.");
             CreateTileAtPosition(BoardManager.Instance.tilePrefab, spawnPos, value, randomColor);
         }
 
@@ -115,9 +157,6 @@ public class TileSplitter : MonoBehaviour
     /// <summary>
     /// Generates a list of values that add up to the target sum, ensuring no value exceeds maxValue.
     /// </summary>
-    /// <param name="targetSum">The sum of all values</param>
-    /// <param name="count">How many values to generate</param>
-    /// <param name="maxValue">Maximum value allowed for any individual tile</param>
     private static List<int> GenerateSplitValues(int targetSum, int count, int maxValue = int.MaxValue)
     {
         List<int> values = new List<int>();
@@ -148,7 +187,7 @@ public class TileSplitter : MonoBehaviour
             bool canDistribute = maxAdditions.Exists(max => max > 0);
             if (!canDistribute)
             {
-                Debug.LogWarning($"TileSplitter: Cannot distribute remaining {remaining} points while keeping all tiles under {maxValue}.");
+                Debug.LogWarning($"TileSplitHandler: Cannot distribute remaining {remaining} points while keeping all tiles under {maxValue}.");
                 break;
             }
             
@@ -161,7 +200,7 @@ public class TileSplitter : MonoBehaviour
                 // Break out if we've tried too many times to avoid infinite loop
                 if (attempts > 100)
                 {
-                    Debug.LogError("TileSplitter: Failed to find valid tile to add value to. Aborting distribution.");
+                    Debug.LogError("TileSplitHandler: Failed to find valid tile to add value to. Aborting distribution.");
                     break;
                 }
             } while (maxAdditions[idx] <= 0);
@@ -175,13 +214,13 @@ public class TileSplitter : MonoBehaviour
         // If we still have remaining value but couldn't distribute it, log a warning
         if (remaining > 0)
         {
-            Debug.LogWarning($"TileSplitter: Couldn't distribute all value. Original: {targetSum}, Sum of splits: {targetSum - remaining}");
+            Debug.LogWarning($"TileSplitHandler: Couldn't distribute all value. Original: {targetSum}, Sum of splits: {targetSum - remaining}");
             
             // Last effort - add remaining value to the first tile, ignoring maxValue
             // This should never happen with proper distribution above
             if (values.Count > 0)
             {
-                Debug.LogWarning($"TileSplitter: Adding remaining {remaining} to first tile, which might exceed maxValue!");
+                Debug.LogWarning($"TileSplitHandler: Adding remaining {remaining} to first tile, which might exceed maxValue!");
                 values[0] += remaining;
             }
         }
@@ -194,7 +233,7 @@ public class TileSplitter : MonoBehaviour
         // Ensure tilePrefab is assigned
         if (tilePrefab == null)
         {
-            Debug.LogError("TileSplitter: Tile prefab is not assigned. Cannot create tiles.");
+            Debug.LogError("TileSplitHandler: Tile prefab is not assigned. Cannot create tiles.");
             return;
         }
 
@@ -211,7 +250,7 @@ public class TileSplitter : MonoBehaviour
         }
         else
         {
-            Debug.LogError("TileSplitter: Spawned tile does not have a Tile component.");
+            Debug.LogError("TileSplitHandler: Spawned tile does not have a Tile component.");
             Destroy(newTileObj);
         }
     }
@@ -236,23 +275,23 @@ public class TileSplitter : MonoBehaviour
     {
         if (Random.value < Constants.SPECIAL_TILE_CHANCE)
         {
-            Debug.Log($"TileSplitter: Attempting to spawn a random special tile near {splitPosition}.");
+            Debug.Log($"TileSplitHandler: Attempting to spawn a random special tile near {splitPosition}.");
             
             // First find an empty position for spawning
             Vector2Int? spawnPosition = FindEmptyPositionForSpecialTile(splitPosition);
             
             if (!spawnPosition.HasValue)
             {
-                Debug.LogWarning("TileSplitter: Could not find valid position for special tile spawn after split.");
+                Debug.LogWarning("TileSplitHandler: Could not find valid position for special tile spawn after split.");
                 return;
             }
             
-            Debug.Log($"TileSplitter: Found valid position {spawnPosition.Value} for special tile spawn.");
+            Debug.Log($"TileSplitHandler: Found valid position {spawnPosition.Value} for special tile spawn.");
             SpecialTileManager.Instance?.SpawnSpecialTile(spawnPosition.Value, "Random");
         }
         else
         {
-            Debug.Log("TileSplitter: Random chance did not trigger special tile spawn.");
+            Debug.Log("TileSplitHandler: Random chance did not trigger special tile spawn.");
         }
     }
 
@@ -380,5 +419,41 @@ public class TileSplitter : MonoBehaviour
         
         // Position passed all checks and is valid
         return true;
+    }
+    
+    /// <summary>
+    /// Checks if a tile should be split based on its value.
+    /// </summary>
+    public static bool ShouldSplitTile(Tile tile)
+    {
+        // Tiles with value greater than 12 will be split
+        return tile != null && tile.number > 12;
+    }
+    
+    /// <summary>
+    /// Finds all tiles that need splitting on the board.
+    /// </summary>
+    public static List<Vector2Int> FindTilesToSplit()
+    {
+        List<Vector2Int> tilesToSplit = new List<Vector2Int>();
+        
+        if (BoardManager.Instance == null) return tilesToSplit;
+
+        for (int x = 0; x < BoardManager.Instance.width; x++)
+        {
+            for (int y = 0; y < BoardManager.Instance.height; y++)
+            {
+                Vector2Int position = new Vector2Int(x, y);
+                Tile tile = BoardManager.Instance.GetTileAtPosition(position);
+                
+                if (tile != null && ShouldSplitTile(tile))
+                {
+                    tilesToSplit.Add(position);
+                    Debug.Log($"TileSplitHandler: Found tile at {position} with value {tile.number} that should be split");
+                }
+            }
+        }
+        
+        return tilesToSplit;
     }
 }

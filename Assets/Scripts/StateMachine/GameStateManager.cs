@@ -15,11 +15,13 @@ public class GameStateManager : MonoBehaviour
     {
         if (Instance == null)
         {
+            Debug.Log("GameStateManager: Initializing singleton instance");
             Instance = this;
             DontDestroyOnLoad(gameObject);
         }
         else
         {
+            Debug.Log("GameStateManager: Another instance exists. Destroying this instance.");
             Destroy(gameObject);
         }
     }
@@ -238,5 +240,178 @@ public class GameStateManager : MonoBehaviour
     public bool CanProcessTileInput()
     {
         return IsInState<WaitingForInputState>();
+    }
+
+    // Add methods to handle all possible states from the StateMachine folder
+    
+    // These states are already handled:
+    // - InitGameState
+    // - WaitingForInputState
+    // - CheckingGameOverState
+    // - GameOverState
+    // - PauseState
+    // - MainMenuState
+    // - LoadingLevelState
+    // - LevelCompleteState 
+    // - LevelFailedState
+    // - GameCompleteState
+    // - SpecialTileSpawningState
+    // - SpecialTileActionState
+    // - SpecialTileActivationState
+    
+    // Add any missing state transition methods
+    
+    public void EnterBootState()
+    {
+        Debug.Log("GameStateManager: Entering BootState");
+        SetState(new BootState());
+    }
+    
+    public void EnterInitGameState()
+    {
+        Debug.Log("GameStateManager: Initializing game");
+        SetState(new InitGameState());
+    }
+    
+    public void EnterSpawningNewTileState()
+    {
+        Debug.Log("GameStateManager: Spawning new tiles");
+        SetState(new SpawningNewTileState());
+    }
+    
+    public void EnterGameCompleteState()
+    {
+        Debug.Log("GameStateManager: Game completed!");
+        SetState(new GameCompleteState());
+    }
+    
+    public void EnterGameOverState()
+    {
+        Debug.Log("GameStateManager: Game over!");
+        SetState(new GameOverState());
+    }
+    
+    // Method to get the current state as a readable string with more details
+    public string GetDetailedStateInfo()
+    {
+        if (currentState == null)
+            return "No active state";
+            
+        string stateName = currentState.GetType().Name;
+        
+        // Add specific details based on state type
+        if (currentState is WaitingForInputState)
+            return $"{stateName}: Waiting for player to select a tile or make a move";
+        else if (currentState is SpawningNewTileState)
+            return $"{stateName}: Adding new tile(s) to the board";
+        else if (currentState is CheckingGameOverState)
+            return $"{stateName}: Verifying if any valid moves remain";
+        else if (currentState is SpecialTileActionState)
+            return $"{stateName}: Special tile action in progress";
+        
+        return stateName;
+    }
+    
+    // Additional utility method to check transition validity
+    public bool CanTransitionTo<T>() where T : GameState
+    {
+        // Some transitions might not be valid based on the current state
+        // For example, can't go directly from GameOverState to WaitingForInputState
+        
+        if (currentState is GameOverState && typeof(T) == typeof(WaitingForInputState))
+            return false;
+            
+        if (currentState is PauseState && typeof(T) != typeof(WaitingForInputState) 
+            && typeof(T) != typeof(MainMenuState))
+            return false;
+            
+        return true;
+    }
+
+    // Add methods for all states from the StateMachine folder
+    
+    public void EnterAnimatingState()
+    {
+        Debug.Log("GameStateManager: Entering AnimatingState");
+        // Fix: Add the next state parameter to the AnimatingState constructor
+        SetState(new AnimatingState(new WaitingForInputState()));
+    }
+    
+    public void EnterCheckingGameOverState()
+    {
+        Debug.Log("GameStateManager: Entering CheckingGameOverState");
+        SetState(new CheckingGameOverState());
+    }
+    
+    public void EnterLevelCompleteState(int nextLevelIndex = -1)
+    {
+        Debug.Log("GameStateManager: Entering LevelCompleteState");
+        SetState(new LevelCompleteState(nextLevelIndex));
+    }
+    
+    public void EnterLevelFailedState()
+    {
+        Debug.Log("GameStateManager: Entering LevelFailedState");
+        SetState(new LevelFailedState());
+    }
+    
+    public void EnterLoadingLevelState()
+    {
+        Debug.Log("GameStateManager: Entering LoadingLevelState");
+        SetState(new LoadingLevelState());
+    }
+    
+    public void EnterMainMenuState()
+    {
+        Debug.Log("GameStateManager: Entering MainMenuState");
+        SetState(new MainMenuState());
+    }
+    
+    public void EnterMergingTilesState()
+    {
+        Debug.Log("GameStateManager: Entering MergingTilesState");
+        SetState(new MergingTilesState());
+    }
+    
+    public void EnterMovingTilesState()
+    {
+        Debug.Log("GameStateManager: Entering MovingTilesState");
+        SetState(new MovingTilesState());
+    }
+    
+    public void EnterPauseState()
+    {
+        Debug.Log("GameStateManager: Entering PauseState");
+        SetState(new PauseState());
+    }
+    
+    public void EnterSpecialTileActionState()
+    {
+        Debug.Log("GameStateManager: Entering SpecialTileActionState");
+        SetState(new SpecialTileActionState());
+    }
+    
+    public void EnterSpecialTileActivationState()
+    {
+        Debug.Log("GameStateManager: Entering SpecialTileActivationState");
+        SetState(new SpecialTileActivationState());
+    }
+    
+    public void EnterSpecialTileSpawningState(Vector2Int position, string abilityName)
+    {
+        Debug.Log($"GameStateManager: Entering SpecialTileSpawningState for {abilityName} at {position}");
+        SetState(new SpecialTileSpawningState(position, abilityName));
+    }
+    
+    public void EnterSplittingTilesState()
+    {
+        Debug.Log("GameStateManager: Entering SplittingTilesState");
+        SetState(new SplittingTilesState());
+    }
+    
+    public void EnterWaitingForInputState()
+    {
+        Debug.Log("GameStateManager: Entering WaitingForInputState");
+        SetState(new WaitingForInputState());
     }
 }
