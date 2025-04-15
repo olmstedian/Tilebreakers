@@ -1,4 +1,6 @@
 using UnityEngine;
+using System.Collections;
+using Tilebreakers.Board; // Add this namespace for TileMergeHandler
 
 public class GameOverManager : MonoBehaviour
 {

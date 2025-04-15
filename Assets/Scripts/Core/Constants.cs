@@ -3,11 +3,11 @@ public static class Constants
     // Grid configuration
     public const int DEFAULT_WIDTH = 6;
     public const int DEFAULT_HEIGHT = 6;
-    public const float DEFAULT_CELL_SIZE = 1.5f;
+    public const float DEFAULT_CELL_SIZE = 1.0f;
 
     // Starting tiles configuration
-    public const int MIN_START_TILES = 3;
-    public const int MAX_START_TILES = 5;
+    public const int MIN_START_TILES = 5;
+    public const int MAX_START_TILES = 8;
 
     // Tile movement
     public const float TILE_MOVE_DURATION = 0.2f;
@@ -17,7 +17,7 @@ public static class Constants
     public const int MAX_TILE_NUMBER = 5;
 
     // Special spawn chance (e.g., Expander tile chance, increased to 70% expressed as 0.7f)
-    public const float SPECIAL_TILE_CHANCE = 0.7f; // Increased for testing
+    public const float SPECIAL_TILE_CHANCE = 0.15f; // Increased for testing
     // Special spawn chance (e.g., Painter tile chance, increased to 20% expressed as 0.2f)
     public const float PAINTER_TILE_CHANCE = 0.2f;
     

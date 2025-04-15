@@ -2,6 +2,9 @@ using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq; // Add this import for LINQ methods like Any()
+using Tilebreakers.Special; // Add this namespace to access SpecialTileManager
+using Tilebreakers.Core; // Add this namespace to access BoardManager and Tile classes
+
 
 public class BlasterTile : SpecialTile
 {

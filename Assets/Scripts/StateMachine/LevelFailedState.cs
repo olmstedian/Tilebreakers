@@ -1,4 +1,5 @@
 using UnityEngine;
+using Tilebreakers.Core;
 
 /// <summary>
 /// Level failed state - shows level failed UI and allows restarting or returning to menu.

@@ -1,4 +1,5 @@
 using UnityEngine;
+using Tilebreakers.Core;
 
 /// <summary>
 /// Game over state - the player has no more valid moves.

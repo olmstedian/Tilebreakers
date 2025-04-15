@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+using Tilebreakers.Board; // Add this namespace for TileMergeHandler
 
 /// <summary>
 /// Merging tiles state - handles tile merging logic.
@@ -62,6 +63,7 @@ public class MergingTilesState : GameState
         yield return new WaitForSeconds(Constants.TILE_MOVE_DURATION);
 
         // Use TileMergeHandler.Instance to perform the merge
+        // Note: The merge will now count as a move within TileMergeHandler.MergeTiles
         bool mergeSuccessful = TileMergeHandler.Instance.MergeTiles(sourceTile, targetTile);
         
         // Remember the position for potential logic after merge
@@ -79,7 +81,7 @@ public class MergingTilesState : GameState
         // Give a small delay after merging before proceeding
         yield return new WaitForSeconds(0.2f);
 
-        // Invoke the callback after merges are complete
+        // Execute callback when movement is complete
         onComplete?.Invoke();
     }
 

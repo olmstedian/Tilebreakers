@@ -1,5 +1,8 @@
 using UnityEngine;
 using System.Collections.Generic;
+// Add the namespace for SpecialTileManager
+using Tilebreakers.Special;
+using Tilebreakers.Board; // Add this namespace for TileMergeHandler
 
 /// <summary>
 /// Handles tile selection logic, highlight creation, and selection state management.
@@ -161,91 +164,36 @@ public class TileSelectionHandler : MonoBehaviour
     }
 
     /// <summary>
-    /// Handles the confirmation of a tile movement to the target position.
+    /// Handles the confirmation of a tile move.
     /// </summary>
     public void HandleTileMoveConfirmation(Vector2Int targetPosition)
     {
-        // First, verify that we're in WaitingForInputState
-        if (GameStateManager.Instance == null || !GameStateManager.Instance.IsInState<WaitingForInputState>())
-        {
-            Debug.Log("TileSelectionHandler: HandleTileMoveConfirmation aborted - not in WaitingForInputState");
-            return;
-        }
-
         if (selectedTile == null)
         {
-            Debug.LogWarning("TileSelectionHandler: HandleTileMoveConfirmation called with no selected tile");
+            Debug.LogWarning("TileSelectionHandler: No tile selected for move confirmation.");
             return;
         }
 
-        if (!BoardManager.Instance.IsWithinBounds(targetPosition))
+        Vector2Int startPosition = BoardManager.Instance.GetGridPositionFromWorldPosition(selectedTile.transform.position);
+
+        if (!BoardManager.Instance.IsValidMove(startPosition, targetPosition, selectedTile, out bool pathClear) || !pathClear)
         {
-            Debug.LogWarning($"TileSelectionHandler: HandleTileMoveConfirmation called with out-of-bounds position {targetPosition}");
+            Debug.LogWarning($"TileSelectionHandler: Invalid move from {startPosition} to {targetPosition}.");
             return;
         }
 
-        // If the clicked cell is the same as the selected tile's cell, do nothing.
-        if (targetPosition == selectedTilePosition)
-        {
-            Debug.Log($"TileSelectionHandler: Target position {targetPosition} is the same as selected tile position. No movement needed.");
-            return;
-        }
+        Debug.Log($"TileSelectionHandler: Moving tile from {startPosition} to {targetPosition}.");
+        BoardManager.Instance.MoveTile(selectedTile, startPosition, targetPosition);
 
-        Debug.Log($"TileSelectionHandler: Checking movement from {selectedTilePosition} to {targetPosition}");
+        // Clear selection
+        ClearSelection();
         
-        // Use TileMovementHandler to validate the move
-        bool pathClear;
-        bool isValidMove = TileMovementHandler.Instance.IsValidMove(selectedTilePosition, targetPosition, selectedTile, out pathClear);
+        // IMPORTANT: Call EndTurn to increment move count
+        Debug.Log("TileSelectionHandler: Move completed, calling GameManager.EndTurn()");
+        GameManager.Instance.EndTurn();
         
-        if (isValidMove)
-        {
-            if (BoardManager.Instance.IsCellOccupied(targetPosition))
-            {
-                Tile targetTile = BoardManager.Instance.GetTileAtPosition(targetPosition);
-                // Use TileMergeHandler to check if colors match
-                if (targetTile != null && TileMergeHandler.Instance.CompareColors(selectedTile.tileColor, targetTile.tileColor))
-                {
-                    // Store references before clearing selection
-                    Tile sourceTile = selectedTile;
-                    Vector2Int sourcePos = selectedTilePosition;
-
-                    // Merge operation
-                    Debug.Log($"TileSelectionHandler: Target cell at {targetPosition} has a compatible tile. Merging...");
-                    
-                    ClearAllSelectionState(); // Clear selection UI first
-                    
-                    // Use TileMergeHandler instead
-                    TileMergeHandler.Instance.PerformMergeOperation(sourceTile, targetTile, sourcePos, targetPosition);
-                }
-                else
-                {
-                    Debug.Log($"TileSelectionHandler: Target cell at {targetPosition} has an incompatible tile. Movement aborted.");
-                    return;
-                }
-            }
-            else
-            {
-                // Target cell is empty, perform movement
-                Debug.Log($"TileSelectionHandler: Moving tile from {selectedTilePosition} to empty cell at {targetPosition}");
-                
-                // Store a reference to the selected tile before clearing selection
-                Tile tileToMove = selectedTile;
-                Vector2Int startPos = selectedTilePosition;
-                
-                ClearAllSelectionState(); // Clear selection UI first
-                
-                // Now perform the move operation using TileMovementHandler
-                TileMovementHandler.Instance.MoveTile(tileToMove, startPos, targetPosition);
-                GameManager.Instance.EndTurn();
-            }
-        }
-        else
-        {
-            Debug.LogWarning($"TileSelectionHandler: Invalid move from {selectedTilePosition} to {targetPosition}");
-        }
-
-        // Set the target position
-        this.targetTilePosition = targetPosition;
+        // Handle post-move logic
+        BoardManager.Instance.HandlePostMove();
     }
 
     /// <summary>

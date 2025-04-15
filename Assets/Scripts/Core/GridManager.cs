@@ -7,7 +7,7 @@ public class GridManager : MonoBehaviour
     [Header("Grid Appearance")]
     [SerializeField] private Color gridLineColor = new Color(0.3f, 0.3f, 0.35f, 0.5f);
     [SerializeField] private float gridLineWidth = 0.05f;
-    [SerializeField] [Range(0f, 0.5f)] private float cellPadding = 0.1f;
+    // [SerializeField] [Range(0f, 0.5f)] private float cellPadding = 0.1f; // Remove or comment out this unused field
     [SerializeField] private bool animateGridLines = true;
     [SerializeField] private float animationSpeed = 0.5f;
 
@@ -15,7 +15,6 @@ public class GridManager : MonoBehaviour
     [SerializeField] private GameObject highlightPrefab;
     [SerializeField] private Color validMoveHighlightColor = new Color(0.4f, 0.8f, 1f, 0.6f);
     [SerializeField] private Color mergeHighlightColor = new Color(1f, 0.7f, 0.2f, 0.7f);
-    [SerializeField] private float gridIntroAnimationDuration = 1.2f;
     [SerializeField] private float cellAnimationDelay = 0.03f;
     [SerializeField] private ParticleSystem gridBurstEffect;
     [SerializeField] private Color gridHighlightColor = new Color(0.4f, 0.8f, 1f, 0.6f);

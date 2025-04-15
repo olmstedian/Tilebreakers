@@ -7,7 +7,7 @@ using System.Collections;
 public class TileAnimator : MonoBehaviour
 {
     [SerializeField] private float mergeAnimationDuration = 0.3f;
-    [SerializeField] private float moveAnimationDuration = 0.2f;
+    // private float moveAnimationDuration; // Unused field declaration
     
     private Tile tile;
     private SpriteRenderer spriteRenderer;

@@ -1,4 +1,5 @@
 using UnityEngine;
+using Tilebreakers.Core;
 
 public abstract class SpecialTile : MonoBehaviour
 {

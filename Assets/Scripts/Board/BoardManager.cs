@@ -1,7 +1,11 @@
 using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
-using System.Collections; // Ensure this is included
+using System.Collections;
+using Tilebreakers.Board; // Add this namespace for TileMergeHandler
+
+// Fix the namespace import - remove the ambiguous alias and use proper class path
+using Tilebreakers.Special;
 
 public class BoardManager : MonoBehaviour
 {
@@ -143,6 +147,7 @@ public class BoardManager : MonoBehaviour
     private Sprite CreateRoundedRectSprite(float width, float height, float radius)
     {
         int textureSize = 128;
+        // Fix 2: Correct Texture2D constructor by providing width and height parameters
         Texture2D texture = new Texture2D(textureSize, textureSize);
         
         Color transparentColor = new Color(1f, 1f, 1f, 0f);
@@ -161,15 +166,15 @@ public class BoardManager : MonoBehaviour
                 float scaledY = ny * height;
                 
                 // Calculate distance from nearest edge
-                float dx = Mathf.Max(Mathf.Abs(scaledX) - width/2f + radius, 0);
-                float dy = Mathf.Max(Mathf.Abs(scaledY) - height/2f + radius, 0);
+                float dx = UnityEngine.Mathf.Max(UnityEngine.Mathf.Abs(scaledX) - width/2f + radius, 0);
+                float dy = UnityEngine.Mathf.Max(UnityEngine.Mathf.Abs(scaledY) - height/2f + radius, 0);
                 
                 // If in corner region, calculate distance from corner
-                float distanceFromCorner = Mathf.Sqrt(dx * dx + dy * dy);
+                float distanceFromCorner = UnityEngine.Mathf.Sqrt(dx * dx + dy * dy);
                 
                 if (distanceFromCorner <= radius)
                     texture.SetPixel(x, y, whiteColor);
-                else if (Mathf.Abs(scaledX) <= width/2f && Mathf.Abs(scaledY) <= height/2f)
+                else if (UnityEngine.Mathf.Abs(scaledX) <= width/2f && UnityEngine.Mathf.Abs(scaledY) <= height/2f)
                     texture.SetPixel(x, y, whiteColor);
                 else
                     texture.SetPixel(x, y, transparentColor);
@@ -184,8 +189,8 @@ public class BoardManager : MonoBehaviour
     {
         while (cell != null)
         {
-            float t = (1 + Mathf.Sin(Time.time * 2 * Mathf.PI / period)) / 2;
-            float scale = Mathf.Lerp(minScale, maxScale, t);
+            float t = (1 + UnityEngine.Mathf.Sin(Time.time * 2 * UnityEngine.Mathf.PI / period)) / 2;
+            float scale = UnityEngine.Mathf.Lerp(minScale, maxScale, t);
             
             if (cell != null) // Check again in case it was destroyed
                 cell.transform.localScale = new Vector3(scale, scale, 1);
@@ -207,15 +212,15 @@ public class BoardManager : MonoBehaviour
     {
         // Convert swipe start position in world space to grid coordinates
         Vector3 worldPosition = Camera.main.ScreenToWorldPoint(swipeStartPosition);
-        int x = Mathf.FloorToInt((worldPosition.x + (width * cellSize) / 2) / cellSize);
-        int y = Mathf.FloorToInt((worldPosition.y + (height * cellSize) / 2) / cellSize);
+        int x = UnityEngine.Mathf.FloorToInt((worldPosition.x + (width * cellSize) / 2) / cellSize);
+        int y = UnityEngine.Mathf.FloorToInt((worldPosition.y + (height * cellSize) / 2) / cellSize);
         return new Vector2Int(x, y);
     }
 
     public Vector2Int GetGridPositionFromWorldPosition(Vector3 worldPosition)
     {
-        int x = Mathf.FloorToInt((worldPosition.x + (width * cellSize) / 2) / cellSize);
-        int y = Mathf.FloorToInt((worldPosition.y + (height * cellSize) / 2) / cellSize);
+        int x = UnityEngine.Mathf.FloorToInt((worldPosition.x + (width * cellSize) / 2) / cellSize);
+        int y = UnityEngine.Mathf.FloorToInt((worldPosition.y + (height * cellSize) / 2) / cellSize);
         return new Vector2Int(x, y);
     }
 
@@ -297,6 +302,9 @@ public class BoardManager : MonoBehaviour
         return board[position.x, position.y];
     }
 
+    /// <summary>
+    /// Set tile at position with additional empty cell tracking validation
+    /// </summary>
     public void SetTileAtPosition(Vector2Int position, Tile tile)
     {
         if (!IsWithinBounds(position))
@@ -307,11 +315,18 @@ public class BoardManager : MonoBehaviour
         
         board[position.x, position.y] = tile;
         
-        // Ensure the cell is marked occupied by removing it from emptyCells
+        // Enhanced emptyCells management - improve logging for debugging
         if (emptyCells.Contains(position))
         {
             emptyCells.Remove(position);
-            Debug.Log($"BoardManager: Position {position} removed from emptyCells during SetTileAtPosition");
+            Debug.Log($"BoardManager: Position {position} removed from emptyCells during SetTileAtPosition (Previous value: {(tile == null ? "null" : tile.number.ToString())})");
+        }
+        
+        // Double-check that this position is actually removed from emptyCells
+        if (emptyCells.Contains(position))
+        {
+            Debug.LogError($"BoardManager: CRITICAL - Position {position} is still in emptyCells after removal attempt. Forcing removal.");
+            emptyCells.Remove(position);
         }
         
         // If the tile is not null, make sure it's physically at the correct position
@@ -326,6 +341,9 @@ public class BoardManager : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Clear cell with enhanced validation
+    /// </summary>
     public void ClearCell(Vector2Int position)
     {
         if (!IsWithinBounds(position))
@@ -334,29 +352,37 @@ public class BoardManager : MonoBehaviour
             return;
         }
 
+        // Get the current tile for logging
+        Tile currentTile = board[position.x, position.y];
+        
         // Clear the reference in the board array
         board[position.x, position.y] = null;
         
-        // Ensure the cell is marked empty by adding it to emptyCells
+        // Improved emptyCells management with verification
         if (!emptyCells.Contains(position))
         {
             emptyCells.Add(position);
-            Debug.Log($"BoardManager: Position {position} added to emptyCells during ClearCell");
+            Debug.Log($"BoardManager: Position {position} added to emptyCells during ClearCell (Previous tile: {(currentTile == null ? "null" : currentTile.number.ToString())})");
+        }
+        else
+        {
+            Debug.LogWarning($"BoardManager: Position {position} was already in emptyCells during ClearCell call - possible duplicate clearing");
         }
         
-        // Optional: Check for any physical objects that might still be at this position
+        // Verify physically empty by checking for any residual colliders
         Vector2 worldPos = GetWorldPosition(position);
         Collider2D[] colliders = Physics2D.OverlapCircleAll(worldPos, 0.4f);
         foreach (var collider in colliders)
         {
-            // Ignore certain objects
+            // Ignore triggers and UI elements
             if (collider.isTrigger || collider.gameObject.CompareTag("Highlight"))
                 continue;
             
-            // If we find a tile component, log a warning
+            // If we find a tile component, log a warning and attempt cleanup
             if (collider.GetComponent<Tile>() != null)
             {
-                Debug.LogWarning($"BoardManager: ClearCell called for {position} but found a physical tile still at this position. This may indicate a synchronization issue.");
+                Debug.LogError($"BoardManager: ClearCell found physical tile at {position} that wasn't properly removed. Forcing destruction.");
+                Destroy(collider.gameObject);
             }
         }
     }
@@ -483,7 +509,8 @@ public class BoardManager : MonoBehaviour
         // Extra validation: check for special tiles at this position
         if (isEmpty && SpecialTileManager.Instance != null)
         {
-            SpecialTile specialTile = SpecialTileManager.Instance.GetSpecialTileAtPosition(position);
+            // Fix: Use the correct method name for getting a special tile at a position
+            SpecialTile specialTile = SpecialTileManager.Instance.GetTileAt(position);
             if (specialTile != null)
             {
                 Debug.LogWarning($"BoardManager: Cell at {position} has special tile '{specialTile.specialAbilityName}'. Not empty.");
@@ -777,6 +804,7 @@ public class BoardManager : MonoBehaviour
             ClearCell(sourcePos);
             emptyCells.Add(sourcePos);
 
+            // Note: MergeTiles will now count the move automatically
             bool mergeSuccess = TileMergeHandler.Instance.MergeTiles(targetTile, sourceTile);
             Debug.Log($"BoardManager: Merge result: {(mergeSuccess ? "SUCCESS" : "FAILED")}");
 
@@ -805,9 +833,13 @@ public class BoardManager : MonoBehaviour
                 animator?.PlayMergeAnimation();
                 ClearSelection();
                 ClearAllSelectionState();
+                
+                // IMPORTANT: Don't call EndTurn here as MergeTiles now does it
             }
             else
             {
+                // Only call EndTurn in failure case, since TileMergeHandler.MergeTiles
+                // would not have been called successfully
                 GameManager.Instance.EndTurn();
             }
         }));
@@ -833,14 +865,38 @@ public class BoardManager : MonoBehaviour
         }
         
         Debug.Log($"BoardManager: Delegating split operation to TileSplitHandler for tile at {position} with value {tile.number}");
+        
+        // Save a reference to the tile's GameObject before delegating
+        GameObject tileObj = tile.gameObject;
+        
+        // First make sure this tile position is properly tracked
+        if (GetTileAtPosition(position) != tile)
+        {
+            Debug.LogWarning($"BoardManager: Tile at {position} is not properly registered in the board array. Fixing before split.");
+            SetTileAtPosition(position, tile);
+        }
+        
         TileSplitHandler.PerformSplitOperation(tile, position);
         
-        // Verify that the original tile has been removed after splitting
-        if (GetTileAtPosition(position) == tile)
+        // EXPLICIT VERIFICATION: Check if original tile was properly removed
+        if (GetTileAtPosition(position) == tile || GetTileAtPosition(position) != null)
         {
-            Debug.LogWarning($"BoardManager: After splitting, original tile at {position} still exists! Manually removing it.");
+            Debug.LogWarning($"BoardManager: After splitting, position {position} still contains a tile! Forcing clear.");
             ClearCell(position);
-            Destroy(tile.gameObject);
+            
+            // Double-check the GameObject was destroyed
+            if (tileObj != null)
+            {
+                Debug.LogError($"BoardManager: Original tile GameObject still exists after split! Destroying.");
+                Destroy(tileObj);
+            }
+        }
+        
+        // Ensure this position is now in emptyCells
+        if (!emptyCells.Contains(position))
+        {
+            Debug.LogWarning($"BoardManager: Position {position} not in emptyCells after splitting. Adding.");
+            emptyCells.Add(position);
         }
     }
 
@@ -875,7 +931,7 @@ public class BoardManager : MonoBehaviour
                 return;
             }
             // Check for special tiles at this position
-            SpecialTile specialTile = SpecialTileManager.Instance?.GetSpecialTileAtPosition(position);
+            SpecialTile specialTile = SpecialTileManager.Instance?.GetTileAt(position);
             if (specialTile != null)
             {
                 Debug.LogError($"BoardManager: Found special tile '{specialTile.specialAbilityName}' at {position} while trying to spawn new special tile!");
@@ -907,7 +963,7 @@ public class BoardManager : MonoBehaviour
         List<Vector2Int> candidatePositions = new List<Vector2Int>();
         
         // Check nearby positions in a spiral pattern
-        for (int radius = 1; radius <= Mathf.Max(width, height); radius++)
+        for (int radius = 1; radius <= UnityEngine.Mathf.Max(width, height); radius++)
         {
             // Check positions in a square around the original position
             for (int dx = -radius; dx <= radius; dx++)
@@ -915,14 +971,15 @@ public class BoardManager : MonoBehaviour
                 for (int dy = -radius; dy <= radius; dy++)
                 {
                     // Only check positions on the perimeter of the square
-                    if (Mathf.Abs(dx) == radius || Mathf.Abs(dy) == radius)
+                    if (UnityEngine.Mathf.Abs(dx) == radius || UnityEngine.Mathf.Abs(dy) == radius)
                     {
                         Vector2Int checkPos = new Vector2Int(position.x + dx, position.y + dy);
                         if (IsWithinBounds(checkPos) && this.IsCellEmpty(checkPos))
                         {
                             // Verify the position is really empty
                             if (GetTileAtPosition(checkPos) == null && 
-                                SpecialTileManager.Instance?.GetSpecialTileAtPosition(checkPos) == null)
+                                // Fix: Use the correct method name
+                                SpecialTileManager.Instance?.GetTileAt(checkPos) == null)
                             {
                                 candidatePositions.Add(checkPos);
                             }
@@ -947,7 +1004,8 @@ public class BoardManager : MonoBehaviour
             
             // Filter the list to ensure cells are actually empty
             allEmptyCells.RemoveAll(pos => GetTileAtPosition(pos) != null || 
-                                          SpecialTileManager.Instance?.GetSpecialTileAtPosition(pos) != null);
+                                      // Fix: Use the correct method name
+                                      (SpecialTileManager.Instance?.GetTileAt(pos) != null));
             if (allEmptyCells.Count > 0)
             {
                 Vector2Int randomEmptyCell = allEmptyCells[Random.Range(0, allEmptyCells.Count)];
@@ -964,7 +1022,8 @@ public class BoardManager : MonoBehaviour
     public void HandleSpecialTileActivation(Vector2Int gridPosition)
     {
         // Use SpecialTileManager to handle special tiles
-        SpecialTile specialTile = SpecialTileManager.Instance.GetSpecialTileAtPosition(gridPosition);
+        // Fix: Use the correct method name
+        SpecialTile specialTile = SpecialTileManager.Instance.GetTileAt(gridPosition);
         if (specialTile != null)
         {
             Debug.Log($"BoardManager: Activating special tile '{specialTile.specialAbilityName}' at {gridPosition}");
@@ -978,7 +1037,7 @@ public class BoardManager : MonoBehaviour
 
     public void RegisterSpecialTile(SpecialTile specialTile)
     {
-        if (!specialTiles.Contains(specialTile)) // Corrected 'contains' to 'Contains'
+        if (!specialTiles.Contains(specialTile)) 
         {
             specialTiles.Add(specialTile);
         }
@@ -1089,11 +1148,8 @@ public class BoardManager : MonoBehaviour
             return;
         }
 
-        tile.ResetState(); // Reset the tile's state before destruction
-        Destroy(tile.gameObject);
-        ClearCell(position); // Ensure the cell is cleared and added to emptyCells
-        // Log the destruction operation
-        Debug.Log($"BoardManager: Destroyed tile at {position}.");
+        // Delegate to the TileDestructionHandler for proper destruction handling
+        TileDestructionHandler.Instance.DestroyTile(tile.gameObject, position);
     }
 
     public void SpawnTile(Vector2Int position, int number, Color color)
@@ -1358,5 +1414,538 @@ public class BoardManager : MonoBehaviour
         tile.UpdateVisuals();
         
         Debug.Log($"BoardManager: Registered split tile with value {tile.number} at position {position}");
+    }
+
+    /// <summary>
+    /// Validate and fix the emptyCells collection after state transitions
+    /// </summary>
+    public void ValidateEmptyCellsAfterStateChange()
+    {
+        Debug.Log("BoardManager: Validating emptyCells collection after state transition");
+        
+        // Check for inconsistencies in both directions
+        bool foundIssue = false;
+        
+        // Check 1: cells that are marked empty but contain tiles in the board array
+        List<Vector2Int> incorrectlyMarkedEmpty = new List<Vector2Int>();
+        foreach (Vector2Int pos in emptyCells)
+        {
+            if (board[pos.x, pos.y] != null)
+            {
+                foundIssue = true;
+                Debug.LogError($"BoardManager: Position {pos} is marked as empty but contains tile with value {board[pos.x, pos.y].number}");
+                incorrectlyMarkedEmpty.Add(pos);
+            }
+        }
+        
+        // Check 2: cells that should be empty but aren't in the emptyCells collection
+        int missingEmptyCount = 0;
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                Vector2Int pos = new Vector2Int(x, y);
+                if (board[x, y] == null && !emptyCells.Contains(pos))
+                {
+                    foundIssue = true;
+                    Debug.LogError($"BoardManager: Position {pos} contains no tile but is not in emptyCells collection");
+                    emptyCells.Add(pos);
+                    missingEmptyCount++;
+                }
+            }
+        }
+        
+        // Remove incorrectly marked cells
+        foreach (Vector2Int pos in incorrectlyMarkedEmpty)
+        {
+            emptyCells.Remove(pos);
+        }
+        
+        if (foundIssue)
+        {
+            Debug.LogWarning($"BoardManager: Fixed emptyCells collection: removed {incorrectlyMarkedEmpty.Count} incorrect entries, added {missingEmptyCount} missing entries");
+        }
+        else
+        {
+            Debug.Log("BoardManager: emptyCells collection is consistent with board state");
+        }
+    }
+
+    // Call this method after key state transitions
+    public void PostMergeCleanup()
+    {
+        Debug.Log("BoardManager: Running post-merge cleanup");
+        ValidateEmptyCellsAfterStateChange();
+        
+        // Clean up any destroyed but lingering GameObjects
+        CleanupDestroyedTiles();
+        
+        // Re-sync the visuals with the data
+        UpdateAllTileVisuals();
+    }
+
+    /// <summary>
+    /// Cleanup any destroyed but lingering tile GameObjects
+    /// </summary>
+    private void CleanupDestroyedTiles()
+    {
+        // Find all tiles with null references in the board array
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                Tile tile = board[x, y];
+                if (tile != null && (tile.gameObject == null || !tile.gameObject.activeInHierarchy))
+                {
+                    Vector2Int pos = new Vector2Int(x, y);
+                    Debug.LogWarning($"BoardManager: Found null/inactive tile reference at {pos}. Clearing cell.");
+                    ClearCell(pos);
+                }
+            }
+        }
+        
+        // Also check for tiles in the scene that might not be properly tracked
+        foreach (Tile tile in FindObjectsOfType<Tile>())
+        {
+            if (tile.GetComponent<SpecialTile>() != null)
+                continue; // Skip special tiles
+            
+            // Get grid position for this tile
+            Vector2Int gridPos = GetGridPositionFromWorldPosition(tile.transform.position);
+            if (!IsWithinBounds(gridPos))
+            {
+                Debug.LogError($"BoardManager: Found tile outside board bounds at world position {tile.transform.position}. Destroying it.");
+                Destroy(tile.gameObject);
+                continue;
+            }
+            
+            // Check if this physical tile is properly tracked in the board array
+            Tile trackedTile = GetTileAtPosition(gridPos);
+            if (trackedTile == null)
+            {
+                Debug.LogWarning($"BoardManager: Found unregistered tile at {gridPos}. Registering it to the board array.");
+                SetTileAtPosition(gridPos, tile);
+            }
+            else if (trackedTile != tile)
+            {
+                Debug.LogError($"BoardManager: Position {gridPos} has mismatched tile references. Fixing...");
+                DestroyTile(trackedTile, gridPos);
+                SetTileAtPosition(gridPos, tile);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Update visuals for all tiles on the board
+    /// </summary>
+    private void UpdateAllTileVisuals()
+    {
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                Tile tile = board[x, y];
+                if (tile != null && tile.gameObject != null)
+                {
+                    tile.UpdateVisuals();
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Checks if the board array data structure matches the physical tiles in the scene
+    /// </summary>
+    public bool VerifyBoardMatchesScene()
+    {
+        Debug.Log("BoardManager: Verifying board array matches scene tiles");
+        bool isConsistent = true;
+        int mismatchCount = 0;
+        
+        // First check: Each tile in board array should have a matching GameObject in the scene
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                Vector2Int pos = new Vector2Int(x, y);
+                Tile boardTile = board[x, y];
+                
+                // If there's a tile in the board array, verify the GameObject exists
+                if (boardTile != null)
+                {
+                    if (boardTile.gameObject == null)
+                    {
+                        Debug.LogError($"BoardManager: Tile at {pos} exists in board array but GameObject is null");
+                        isConsistent = false;
+                        mismatchCount++;
+                    }
+                    else if (!boardTile.gameObject.activeInHierarchy)
+                    {
+                        Debug.LogError($"BoardManager: Tile at {pos} exists in board array but GameObject is inactive");
+                        isConsistent = false;
+                        mismatchCount++;
+                    }
+                    
+                    // Verify the tile's world position matches where it should be
+                    Vector2 expectedWorldPos = GetWorldPosition(pos);
+                    Vector2 actualWorldPos = boardTile.transform.position;
+                    
+                    if (Vector2.Distance(expectedWorldPos, actualWorldPos) > 0.1f)
+                    {
+                        Debug.LogWarning($"BoardManager: Tile position mismatch at {pos}. Expected: {expectedWorldPos}, Actual: {actualWorldPos}");
+                        isConsistent = false;
+                        mismatchCount++;
+                    }
+                }
+            }
+        }
+        
+        // Second check: Each physical tile in the scene should be in the board array
+        foreach (Tile sceneTile in FindObjectsOfType<Tile>())
+        {
+            if (sceneTile.GetComponent<SpecialTile>() != null)
+                continue; // Skip special tiles
+                
+            Vector2Int gridPos = GetGridPositionFromWorldPosition(sceneTile.transform.position);
+            
+            if (!IsWithinBounds(gridPos))
+            {
+                Debug.LogError($"BoardManager: Found physical tile at {sceneTile.transform.position} which is outside board bounds");
+                isConsistent = false;
+                mismatchCount++;
+                continue;
+            }
+            
+            Tile boardTile = board[gridPos.x, gridPos.y];
+            
+            // If the board position doesn't have this tile
+            if (boardTile == null)
+            {
+                Debug.LogError($"BoardManager: Physical tile at {gridPos} exists in scene but not in board array");
+                isConsistent = false;
+                mismatchCount++;
+            }
+            else if (boardTile != sceneTile)
+            {
+                Debug.LogError($"BoardManager: Different tile references at {gridPos}. Board has {boardTile.name} but scene has {sceneTile.name}");
+                isConsistent = false;
+                mismatchCount++;
+            }
+        }
+        
+        // Log the result
+        if (isConsistent)
+        {
+            Debug.Log("BoardManager: Board array perfectly matches scene tiles");
+        }
+        else
+        {
+            Debug.LogWarning($"BoardManager: Found {mismatchCount} mismatches between board array and scene tiles");
+        }
+        
+        return isConsistent;
+    }
+
+    /// <summary>
+    /// Fixes any mismatches between the board array and physical tiles in the scene
+    /// </summary>
+    public void RepairBoardSceneMismatch()
+    {
+        Debug.Log("BoardManager: Repairing mismatches between board array and scene tiles");
+        int fixCount = 0;
+        
+        // Create a dictionary of all tiles in the scene
+        Dictionary<Vector2Int, Tile> sceneTiles = new Dictionary<Vector2Int, Tile>();
+        foreach (Tile sceneTile in FindObjectsOfType<Tile>())
+        {
+            if (sceneTile.GetComponent<SpecialTile>() != null)
+                continue; // Skip special tiles
+                
+            Vector2Int gridPos = GetGridPositionFromWorldPosition(sceneTile.transform.position);
+            if (IsWithinBounds(gridPos))
+            {
+                // If multiple tiles at the same position, take the one closest to the grid position
+                if (sceneTiles.ContainsKey(gridPos))
+                {
+                    Vector2 expectedWorldPos = GetWorldPosition(gridPos);
+                    Vector2 existingDist = (Vector2)sceneTiles[gridPos].transform.position - expectedWorldPos;
+                    Vector2 newDist = (Vector2)sceneTile.transform.position - expectedWorldPos;
+                    
+                    if (newDist.sqrMagnitude < existingDist.sqrMagnitude)
+                    {
+                        Debug.LogWarning($"BoardManager: Found multiple tiles at {gridPos}, keeping the one closest to grid center");
+                        Destroy(sceneTiles[gridPos].gameObject);
+                        sceneTiles[gridPos] = sceneTile;
+                        fixCount++;
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"BoardManager: Found multiple tiles at {gridPos}, destroying the one further from grid center");
+                        Destroy(sceneTile.gameObject);
+                        fixCount++;
+                    }
+                }
+                else
+                {
+                    sceneTiles.Add(gridPos, sceneTile);
+                }
+            }
+            else
+            {
+                Debug.LogError($"BoardManager: Found tile outside bounds at {sceneTile.transform.position}. Destroying it.");
+                Destroy(sceneTile.gameObject);
+                fixCount++;
+            }
+        }
+        
+        // Now fix the board array using scene data
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                Vector2Int pos = new Vector2Int(x, y);
+                Tile boardTile = board[x, y];
+                bool hasSceneTile = sceneTiles.TryGetValue(pos, out Tile sceneTile);
+                
+                // Case 1: Board has tile but scene doesn't
+                if (boardTile != null && !hasSceneTile)
+                {
+                    Debug.LogWarning($"BoardManager: Board has tile at {pos} but no scene tile exists. Clearing board cell.");
+                    ClearCell(pos);
+                    if (!emptyCells.Contains(pos))
+                    {
+                        emptyCells.Add(pos);
+                    }
+                    fixCount++;
+                }
+                // Case 2: Scene has tile but board doesn't
+                else if (boardTile == null && hasSceneTile)
+                {
+                    Debug.LogWarning($"BoardManager: Scene has tile at {pos} but board cell is empty. Registering tile.");
+                    SetTileAtPosition(pos, sceneTile);
+                    if (emptyCells.Contains(pos))
+                    {
+                        emptyCells.Remove(pos);
+                    }
+                    fixCount++;
+                }
+                // Case 3: Both have tiles but they're different
+                else if (boardTile != null && hasSceneTile && boardTile != sceneTile)
+                {
+                    Debug.LogWarning($"BoardManager: Mismatched tiles at {pos}. Prioritizing scene tile.");
+                    board[x, y] = sceneTile;
+                    fixCount++;
+                }
+                // Case 4: Both match - nothing to do
+                
+                // Extra: If scene tile exists, make sure it's positioned correctly
+                if (hasSceneTile)
+                {
+                    Vector2 expectedWorldPos = GetWorldPosition(pos);
+                    if (Vector2.Distance((Vector2)sceneTile.transform.position, expectedWorldPos) > 0.1f)
+                    {
+                        Debug.Log($"BoardManager: Fixing tile position at {pos}");
+                        sceneTile.transform.position = expectedWorldPos;
+                        fixCount++;
+                    }
+                }
+            }
+        }
+        
+        Debug.Log($"BoardManager: Finished repairing board-scene mismatches. Fixed {fixCount} issues.");
+    }
+
+    /// <summary>
+    /// Places a blocked tile at the specified position
+    /// </summary>
+    public void PlaceBlockedTile(Vector2Int position)
+    {
+        if (!IsWithinBounds(position))
+        {
+            Debug.LogWarning($"BoardManager: Cannot place blocked tile at out-of-bounds position {position}");
+            return;
+        }
+
+        // Check if the position is already occupied
+        if (!IsCellEmpty(position))
+        {
+            Debug.LogWarning($"BoardManager: Cannot place blocked tile at occupied position {position}");
+            return;
+        }
+
+        // Create a blocked tile GameObject
+        GameObject blockedTile = new GameObject($"BlockedTile_{position.x}_{position.y}");
+        blockedTile.transform.position = GetWorldPosition(position);
+        blockedTile.transform.SetParent(transform);
+
+        // Add a sprite renderer component
+        SpriteRenderer renderer = blockedTile.AddComponent<SpriteRenderer>();
+        renderer.sprite = CreateBlockedTileSprite();
+        renderer.color = new Color(0.25f, 0.25f, 0.25f, 1f);
+        renderer.sortingOrder = 0;
+
+        // Add a collider to block movement
+        BoxCollider2D collider = blockedTile.AddComponent<BoxCollider2D>();
+        collider.size = new Vector2(cellSize * 0.9f, cellSize * 0.9f);
+
+        // Add a blocked tile component
+        BlockedTile blockedTileComponent = blockedTile.AddComponent<BlockedTile>();
+        blockedTile.tag = "BlockedTile";
+
+        // Mark the cell as occupied
+        MarkCellAsOccupied(position);
+
+        Debug.Log($"BoardManager: Placed blocked tile at {position}");
+    }
+
+    /// <summary>
+    /// Creates a sprite for blocked tiles
+    /// </summary>
+    private Sprite CreateBlockedTileSprite()
+    {
+        int textureSize = 128;
+        // Fix 9: Correct Texture2D constructor by providing width and height parameters
+        Texture2D texture = new Texture2D(textureSize, textureSize);
+
+        Color solidColor = new Color(0.25f, 0.25f, 0.25f);
+        Color transparentColor = new Color(0.25f, 0.25f, 0.25f, 0f);
+        float borderWidth = 0.15f;
+
+        for (int x = 0; x < textureSize; x++)
+        {
+            for (int y = 0; y < textureSize; y++)
+            {
+                float normalizedX = x / (float)textureSize;
+                float normalizedY = y / (float)textureSize;
+
+                // Create a solid square with rounded corners and a border
+                bool isInside = normalizedX >= borderWidth && normalizedX <= (1 - borderWidth) &&
+                               normalizedY >= borderWidth && normalizedY <= (1 - borderWidth);
+
+                // Draw X pattern
+                bool isOnX = UnityEngine.Mathf.Abs(normalizedX - normalizedY) < 0.08f || 
+                             UnityEngine.Mathf.Abs(normalizedX - (1 - normalizedY)) < 0.08f;
+
+                if (isInside)
+                {
+                    texture.SetPixel(x, y, isOnX ? solidColor : new Color(0.3f, 0.3f, 0.3f));
+                }
+                else
+                {
+                    // Create rounded corners
+                    float distFromCenter = UnityEngine.Mathf.Sqrt(
+                        UnityEngine.Mathf.Pow(normalizedX - 0.5f, 2) + 
+                        UnityEngine.Mathf.Pow(normalizedY - 0.5f, 2));
+                    
+                    texture.SetPixel(x, y, distFromCenter < 0.5f ? solidColor : transparentColor);
+                }
+            }
+        }
+
+        texture.Apply();
+        return Sprite.Create(texture, new Rect(0, 0, textureSize, textureSize), new Vector2(0.5f, 0.5f), 100f);
+    }
+
+    /// <summary>
+    /// Spawns a new tile after a move if the move was valid.
+    /// </summary>
+    public void SpawnTileAfterMove()
+    {
+        if (skipNextSpawn)
+        {
+            skipNextSpawn = false;
+            Debug.Log("BoardManager: Tile spawn skipped.");
+            return;
+        }
+
+        // Ensure there are empty cells available
+        if (emptyCells.Count == 0)
+        {
+            Debug.LogWarning("BoardManager: No empty cells available for spawning a new tile.");
+            return;
+        }
+
+        // Select a random empty cell
+        Vector2Int spawnPosition = emptyCells.ElementAt(Random.Range(0, emptyCells.Count));
+
+        // Generate a random tile value and color
+        int randomNumber = Random.Range(Constants.MIN_TILE_NUMBER, Constants.MAX_TILE_NUMBER + 1);
+        Color randomColor = tileColorPalette[Random.Range(0, tileColorPalette.Length)];
+
+        // Spawn the tile
+        SpawnTile(spawnPosition, randomNumber, randomColor);
+        Debug.Log($"BoardManager: Spawned tile with value {randomNumber} at {spawnPosition}.");
+    }
+
+    /// <summary>
+    /// Call this method after a move to handle spawning and other post-move logic.
+    /// </summary>
+    public void HandlePostMove()
+    {
+        Debug.Log("BoardManager: Handling post-move logic.");
+        SpawnTileAfterMove();
+
+        // Check if there are any valid moves left
+        if (!HasValidMove())
+        {
+            Debug.LogWarning("BoardManager: No valid moves left. Triggering game over.");
+            GameOverManager.Instance?.CheckGameOver();
+        }
+    }
+
+    /// <summary>
+    /// Determines if a move from start to target position is valid for a given tile.
+    /// Checks orthogonal movement, distance within tile number, and path clearance.
+    /// </summary>
+    /// <param name="startPosition">The starting position of the tile</param>
+    /// <param name="targetPosition">The target position to move to</param>
+    /// <param name="tile">The tile being moved</param>
+    /// <param name="pathClear">Output parameter indicating if the path is clear</param>
+    /// <returns>True if the move is valid, false otherwise</returns>
+    public bool IsValidMove(Vector2Int startPosition, Vector2Int targetPosition, Tile tile, out bool pathClear)
+    {
+        pathClear = false;
+
+        if (tile == null)
+        {
+            Debug.LogWarning("BoardManager: Cannot validate move for null tile.");
+            return false;
+        }
+
+        // Check if the target is the same as start (no movement)
+        if (targetPosition == startPosition)
+        {
+            return false;
+        }
+
+        // Check if positions are within bounds
+        if (!IsWithinBounds(startPosition) || !IsWithinBounds(targetPosition))
+        {
+            Debug.LogWarning($"BoardManager: Out of bounds positions - Start: {startPosition}, Target: {targetPosition}");
+            return false;
+        }
+
+        // Check if the move is orthogonal (along one axis only)
+        Vector2Int direction = targetPosition - startPosition;
+        bool isOrthogonal = direction.x == 0 || direction.y == 0;
+
+        if (!isOrthogonal)
+        {
+            Debug.Log("BoardManager: Move is not orthogonal.");
+            return false;
+        }
+
+        // Check if the distance is within the tile's number (movement range)
+        int distance = Mathf.Abs(direction.x) + Mathf.Abs(direction.y);
+        if (distance > tile.number)
+        {
+            Debug.Log($"BoardManager: Distance {distance} exceeds tile movement range {tile.number}.");
+            return false;
+        }
+
+        // Check if the path is clear
+        pathClear = TileMovementHandler.Instance.IsPathClear(startPosition, targetPosition);
+
+        return isOrthogonal && distance <= tile.number && pathClear;
     }
 }

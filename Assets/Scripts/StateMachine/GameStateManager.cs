@@ -1,8 +1,16 @@
 using UnityEngine;
 using System.Collections;
+// Add this line to import the Special namespace
+using Tilebreakers.Special;
+using Tilebreakers.Core;
+using System.Collections.Generic;
 
 public class GameStateManager : MonoBehaviour
 {
+    /// <summary>
+    /// Singleton instance of GameStateManager
+    /// </summary>
+    
     public static GameStateManager Instance { get; private set; }
     private GameState currentState;
 
@@ -413,5 +421,53 @@ public class GameStateManager : MonoBehaviour
     {
         Debug.Log("GameStateManager: Entering WaitingForInputState");
         SetState(new WaitingForInputState());
+    }
+
+    /// <summary>
+    /// Transitions to a specified level
+    /// </summary>
+    public void GoToLevel(int levelIndex)
+    {
+        SetState(new LevelTransitionState(levelIndex));
+    }
+
+    /// <summary>
+    /// Transitions to infinite mode
+    /// </summary>
+    public void GoToInfiniteMode()
+    {
+        // Use a level index beyond the total level count to indicate infinite mode
+        int infiniteModeIndex = LevelManager.Instance != null ? LevelManager.Instance.TotalLevels : 999;
+        SetState(new LevelTransitionState(infiniteModeIndex));
+    }
+
+    // Add these three missing state transition methods
+    
+    /// <summary>
+    /// Transitions to the destruction state for handling tile destruction effects.
+    /// </summary>
+    public void EnterDestructionState()
+    {
+        Debug.Log("GameStateManager: Entering DestructionState");
+        // Fix: Pass an empty list to match the required constructor parameter
+        SetState(new DestructionState(new List<(Tile tile, Vector2Int position)>()));
+    }
+
+    /// <summary>
+    /// Transitions to the level transition state to handle moving between levels.
+    /// </summary>
+    public void EnterLevelTransitionState(int targetLevelIndex)
+    {
+        Debug.Log($"GameStateManager: Transitioning to level {targetLevelIndex}");
+        SetState(new LevelTransitionState(targetLevelIndex));
+    }
+
+    /// <summary>
+    /// Transitions to the post-merge evaluation state after merges are completed.
+    /// </summary>
+    public void EnterPostMergeEvaluationState()
+    {
+        Debug.Log("GameStateManager: Entering PostMergeEvaluationState");
+        SetState(new PostMergeEvaluationState());
     }
 }

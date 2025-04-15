@@ -1,5 +1,7 @@
 using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
+using Tilebreakers.Board; // Add this using directive for TileMergeHandler
 
 /// <summary>
 /// Handles movement operations for tiles, including animation and state management.
@@ -222,6 +224,26 @@ public class TileMovementHandler : MonoBehaviour
         }
         
         boardManager.MarkCellAsOccupied(targetPosition); // Ensure the target cell is removed from emptyCells
+
+        // Count the move after successfully moving the tile
+        // This ensures moves are counted properly
+        StartCoroutine(CountMoveAfterAnimation(Constants.TILE_MOVE_DURATION));
+    }
+
+    /// <summary>
+    /// Counts a move after the animation completes to ensure proper timing
+    /// </summary>
+    private IEnumerator CountMoveAfterAnimation(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        
+        // Ensure move is counted only for player-initiated moves (not auto moves from effects)
+        if (GameStateManager.Instance.IsInState<MovingTilesState>() || 
+            GameStateManager.Instance.IsInState<WaitingForInputState>())
+        {
+            Debug.Log("TileMovementHandler: Animation complete, counting move");
+            GameManager.Instance.EndTurn();
+        }
     }
 
     /// <summary>

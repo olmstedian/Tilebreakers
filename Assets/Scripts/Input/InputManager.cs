@@ -6,7 +6,7 @@ public class InputManager : MonoBehaviour
 
     public Vector2 touchPosition { get; private set; }
     private bool isSelecting;
-    private bool tileWasSelected = false;  // New tracking variable
+    // private bool tileWasSelected;  // Removed unused field declaration
 
     public delegate void TileSelectedAction(Vector2Int gridPosition);
     public static event TileSelectedAction OnTileSelected;

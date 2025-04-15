@@ -1,5 +1,8 @@
 using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
+using Tilebreakers.Core;
+using Tilebreakers.Board; // Add this namespace for TileMergeHandler
 
 public class PainterTile : SpecialTile
 {

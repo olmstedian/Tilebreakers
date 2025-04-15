@@ -1,4 +1,5 @@
 using UnityEngine;
+using Tilebreakers.Core;
 
 /// <summary>
 /// Game complete state - the player has finished all levels.

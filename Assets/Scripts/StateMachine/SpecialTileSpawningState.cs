@@ -1,4 +1,5 @@
 using UnityEngine;
+using Tilebreakers.Special; // Add this namespace to access SpecialTileManager
 
 /// <summary>
 /// Special tile spawning state - handles spawning of special tiles.

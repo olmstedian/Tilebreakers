@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections;
+using Tilebreakers.Core;
 
 public class DoublerTile : SpecialTile
 {

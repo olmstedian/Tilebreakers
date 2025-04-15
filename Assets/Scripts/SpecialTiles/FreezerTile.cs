@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections;
+using Tilebreakers.Core; // Add this namespace to resolve ScoreManager
 
 public class FreezeTile : SpecialTile
 {

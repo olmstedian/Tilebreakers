@@ -1,4 +1,5 @@
 using UnityEngine;
+using Tilebreakers.Core;
 
 /// <summary>
 /// Boot state - handles app initialization and splash screen display.
@@ -7,12 +8,17 @@ public class BootState : GameState
 {
     public override void Enter()
     {
-        Debug.Log("BootState: Entering BootState...");
-        UIManager.Instance.ShowSplashScreen();
+        Debug.Log("BootState: Initializing game...");
 
-        // Schedule transition to MainMenuState
-        Debug.Log("BootState: Scheduling transition to MainMenuState.");
-        GameStateManager.Instance.SetStateWithDelay(new MainMenuState(), 2.0f);
+        // Ensure the board is cleared and no tiles are spawned
+        BoardManager.Instance?.ClearBoard();
+
+        // Initialize other game systems if necessary
+        GameManager.Instance.ResetMoves();
+        ScoreManager.Instance?.ResetScore();
+
+        // Transition to the InitGameState after booting
+        GameStateManager.Instance.SetState(new InitGameState());
     }
 
     public override void Update() { }

@@ -1,52 +1,70 @@
 using UnityEngine;
+using Tilebreakers.Core; // Add this to resolve ScoreManager reference
 
 /// <summary>
-/// Level complete state - shows level complete UI and prepares for the next level.
+/// State when a level is completed
 /// </summary>
 public class LevelCompleteState : GameState
 {
-    private int nextLevelIndex;
-    
-    public LevelCompleteState(int nextLevelIndex)
+    private readonly int nextLevelIndex;
+    private bool transitionRequested = false;
+
+    public LevelCompleteState(int nextLevelIndex = -1)
     {
         this.nextLevelIndex = nextLevelIndex;
     }
-    
+
     public override void Enter()
     {
-        Debug.Log($"LevelCompleteState: Level complete! Next level: {nextLevelIndex}");
-        
-        // Display level complete screen
-        UIManager.Instance.ShowLevelCompleteScreen(ScoreManager.Instance.GetCurrentScore());
-        
-        // Play success sound
-        AudioManager.Instance?.PlayLevelCompleteSound();
+        Debug.Log("LevelCompleteState: Entering level complete state.");
+
+        // Use ScoreManager.Instance to reset the score
+        ScoreManager.Instance?.ResetScore();
+
+        // Fix: Call the static method using the class name
+        ScoreManager.ShowScorePopup(ScoreManager.Instance.Score, "Level Complete!");
+
+        // Notify UIManager to display level completion info
+        UIManager.Instance.ShowLevelCompletePanel(nextLevelIndex);
+
+        // Example: Reset score for the next level
+        ScoreManager.Instance?.ResetScore();
+
+        // Example: Prepare the next level
+        LevelManager.Instance?.LoadLevel(nextLevelIndex);
     }
 
-    public override void Update() { }
-
-    public override void HandleInput(Vector2Int gridPosition)
+    public override void Update()
     {
-        // Progress to the next level when player taps
-        LoadNextLevel();
+        // Check if a transition to next level has been requested by another component
+        if (transitionRequested)
+        {
+            Debug.Log("LevelCompleteState: Processing transition request to next level");
+            GameStateManager.Instance.SetState(new LoadingLevelState());
+            transitionRequested = false;
+        }
     }
 
     public override void Exit()
     {
-        Debug.Log("LevelCompleteState: Proceeding to next level.");
-        UIManager.Instance.HideLevelCompleteScreen();
+        Debug.Log("LevelCompleteState: Exited state");
+        
+        // Ensure any level complete UI is hidden
+        UIManager.Instance?.HideLevelCompleteScreen();
     }
-    
-    private void LoadNextLevel()
+
+    /// <summary>
+    /// Requests a transition to the next level
+    /// </summary>
+    public void RequestNextLevelTransition()
     {
-        if (LevelManager.Instance != null)
-        {
-            LevelManager.Instance.LoadLevel(nextLevelIndex);
-            GameStateManager.Instance.SetState(new WaitingForInputState());
-        }
-        else
-        {
-            GameStateManager.Instance.RestartGame();
-        }
+        transitionRequested = true;
+        Debug.Log("LevelCompleteState: Next level transition requested");
+    }
+
+    public override void HandleInput(Vector2Int position)
+    {
+        // No grid input handling in this state
+        // Only UI buttons should be interactive
     }
 }

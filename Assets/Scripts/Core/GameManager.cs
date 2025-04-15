@@ -1,6 +1,7 @@
 // Controls game flow, turn sequence, game over condition
 
 using UnityEngine;
+using Tilebreakers.Special; // Add namespace for SpecialTileManager
 
 public class GameManager : MonoBehaviour
 {
@@ -10,6 +11,8 @@ public class GameManager : MonoBehaviour
     [SerializeField] private GameObject gameOverManagerPrefab; // Add a reference to the GameOverManager prefab
     [SerializeField] private GameObject gridManagerPrefab;
     [SerializeField] private GameObject tileMovementHandlerPrefab; // Add reference to TileMovementHandler prefab
+
+    private int moves = 0; // Ensure this variable exists to track moves
 
     private void Awake()
     {
@@ -97,9 +100,71 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Ends the current turn and updates the move count.
+    /// </summary>
     public void EndTurn()
     {
-        GameStateManager.Instance?.EndTurn();
+        // Increment move counter and add debug to verify it's being called
+        moves++;
+        Debug.Log($"GameManager: EndTurn called. Move count is now {moves}");
+        
+        // Update move count in UI with additional debug
+        if (UIManager.Instance != null)
+        {
+            UIManager.Instance.UpdateMoveCount(moves);
+            Debug.Log($"GameManager: Sent updated move count ({moves}) to UIManager");
+        }
+        else
+        {
+            Debug.LogWarning("GameManager: UIManager instance is null, cannot update move display");
+        }
+        
+        // Notify LevelManager of move
+        if (LevelManager.Instance != null)
+        {
+            LevelManager.Instance.NotifyMoveMade();
+        }
+        
+        // Process move consequences
+        ProcessTurnEnd();
+    }
+
+    /// <summary>
+    /// Processes end-of-turn events
+    /// </summary>
+    private void ProcessTurnEnd()
+    {
+        // Check level objectives
+        if (LevelManager.Instance != null)
+        {
+            LevelManager.Instance.CheckLevelCompletion();
+        }
+        
+        // Check for game over
+        GameOverManager.Instance?.CheckGameOver();
+    }
+
+    /// <summary>
+    /// Resets the move counter
+    /// </summary>
+    public void ResetMoves()
+    {
+        moves = 0;
+        
+        // Update UI
+        if (UIManager.Instance != null)
+        {
+            UIManager.Instance.UpdateMoveCount(moves);
+        }
+    }
+
+    /// <summary>
+    /// Gets the current move count
+    /// </summary>
+    public int GetMoveCount()
+    {
+        return moves;
     }
 
     public void LoadNextLevel()
@@ -138,5 +203,17 @@ public class GameManager : MonoBehaviour
         
         Debug.Log($"GameManager: Spawning special tile '{abilityName}' at position {position}");
         GameStateManager.Instance?.SetState(new SpecialTileSpawningState(position, abilityName));
+    }
+
+    private void AdvanceLevel()
+    {
+        LevelManager.Instance.AdvanceToNextLevel();
+        // ...existing code...
+    }
+
+    private void RestartLevel()
+    {
+        LevelManager.Instance.RestartCurrentLevel();
+        // ...existing code...
     }
 }

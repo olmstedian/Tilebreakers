@@ -1,4 +1,5 @@
 using UnityEngine;
+using Tilebreakers.Special; // Add this namespace to access SpecialTileManager
 
 /// <summary>
 /// Waiting for input state - waits for player input.

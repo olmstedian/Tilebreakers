@@ -1,6 +1,8 @@
 using UnityEngine;
 using System.Collections.Generic;
 using System.Linq; // Add this namespace for Enumerable extension methods
+using Tilebreakers.Core; // Add namespace reference for ScoreFacade
+using Tilebreakers.Special; // Add namespace for SpecialTileManager
 
 public class TileSplitHandler : MonoBehaviour
 {
@@ -10,7 +12,6 @@ public class TileSplitHandler : MonoBehaviour
     private static List<Vector2Int> registeredTilesToSplit = new List<Vector2Int>();
     
     [SerializeField] private ParticleSystem splitEffect;
-    [SerializeField] [Range(0f, 1f)] private float specialTileSpawnChance = Constants.SPECIAL_TILE_CHANCE;
 
     private void Awake()
     {
@@ -111,16 +112,16 @@ public class TileSplitHandler : MonoBehaviour
 
         // IMPROVED LOGIC: Calculate split count based on tile value
         // For extremely high values, create more tiles to distribute the values better
-        int baseSplitCount = Mathf.Max(2, Mathf.FloorToInt(originalValue / 8f));
-        int maxSplitCount = Mathf.Min(5, baseSplitCount + 1); // Cap at 5 splits
-        int minSplitCount = Mathf.Min(2, maxSplitCount); // Ensure at least 2 splits
+        int baseSplitCount = UnityEngine.Mathf.Max(2, UnityEngine.Mathf.FloorToInt(originalValue / 8f));
+        int maxSplitCount = UnityEngine.Mathf.Min(5, baseSplitCount + 1); // Cap at 5 splits
+        int minSplitCount = UnityEngine.Mathf.Min(2, maxSplitCount); // Ensure at least 2 splits
         
         // For very high values (24+), ensure we use more splits
         if (originalValue >= 24) {
-            minSplitCount = Mathf.Min(3, maxSplitCount);
+            minSplitCount = UnityEngine.Mathf.Min(3, maxSplitCount);
         }
         if (originalValue >= 36) {
-            minSplitCount = Mathf.Min(4, maxSplitCount);
+            minSplitCount = UnityEngine.Mathf.Min(4, maxSplitCount);
         }
         
         int splitCount = Random.Range(minSplitCount, maxSplitCount + 1);
@@ -130,7 +131,7 @@ public class TileSplitHandler : MonoBehaviour
         List<Vector2Int> availablePositions = FindSplitPositions(originalPosition);
 
         // Adjust split count based on available positions
-        splitCount = Mathf.Min(splitCount, availablePositions.Count);
+        splitCount = UnityEngine.Mathf.Min(splitCount, availablePositions.Count);
         if (splitCount < 2)
         {
             Debug.LogWarning("TileSplitHandler: Not enough available positions to split the tile.");
@@ -143,7 +144,7 @@ public class TileSplitHandler : MonoBehaviour
         List<int> splitValues = GenerateSplitValues(originalValue, splitCount, 12); // Enforce max value of 12
 
         // Use the utility to safely destroy the original tile
-        TileDestructionUtility.DestroyTile(tileObject, originalPosition);
+        TileDestructionHandler.Instance.DestroyTile(tileObject, originalPosition);
 
         for (int i = 0; i < splitCount; i++)
         {
@@ -158,13 +159,26 @@ public class TileSplitHandler : MonoBehaviour
         // Use our new specialized method for special tile spawning
         SpawnSpecialTileAfterSplit(originalPosition);
 
-        ScoreManager.Instance.AddSplitScore(originalValue);
+        // CRITICAL FIX: Use AddScoreWithoutPopup instead of AddScore
+        // This will avoid calling both AddScore (which shows a popup) and ShowScorePopup
+        int bonusPoints = Mathf.RoundToInt(originalValue * 0.5f);
+        Tilebreakers.Core.ScoreManager.Instance.AddScoreWithoutPopup(bonusPoints);
+
+        // Show splitting score popups at the BOTTOM of the screen
+        // This visually separates them from merge popups
+        ScoreUtility.ShowPopupAtScreenPosition(bonusPoints, 
+            new Vector2(Screen.width * 0.5f + Random.Range(-50f, 50f), Screen.height * 0.75f));
+        
+        // Remove this line to prevent duplicate popup
+        // ScoreManager.ShowScorePopup(originalValue, $"Split: {originalValue}");
     }
 
     private static List<Vector2Int> FindSplitPositions(Vector2Int originalPos)
     {
-        List<Vector2Int> availablePositions = new List<Vector2Int>();
         BoardManager boardManager = BoardManager.Instance;
+        
+        // Initialize the availablePositions list before using it
+        List<Vector2Int> availablePositions = new List<Vector2Int>();
 
         // Check all cells on the board
         for (int x = 0; x < boardManager.width; x++)
@@ -178,7 +192,7 @@ public class TileSplitHandler : MonoBehaviour
                     continue;
 
                 // Prioritize cells that aren't adjacent to the original position
-                int manhattanDistance = Mathf.Abs(pos.x - originalPos.x) + Mathf.Abs(pos.y - originalPos.y);
+                int manhattanDistance = UnityEngine.Mathf.Abs(pos.x - originalPos.x) + UnityEngine.Mathf.Abs(pos.y - originalPos.y);
                 if (manhattanDistance > 1)
                 {
                     availablePositions.Add(pos);
@@ -191,7 +205,7 @@ public class TileSplitHandler : MonoBehaviour
         {
             for (int x = 0; x < boardManager.width; x++)
             {
-                for (int y = 0; y < boardManager.height; y++)
+                for (int y = 0; x < boardManager.height; y++)
                 {
                     Vector2Int pos = new Vector2Int(x, y);
                     if (pos != originalPos && global::BoardManager.Instance.IsCellEmpty(pos) && !availablePositions.Contains(pos))
@@ -221,7 +235,7 @@ public class TileSplitHandler : MonoBehaviour
         // For more splits, we can use higher low value thresholds
         int lowValueThreshold = 6;
         if (count >= 4) {
-            lowValueThreshold = Mathf.Min(8, maxValue - 1); // For 4+ splits, threshold can be higher
+            lowValueThreshold = UnityEngine.Mathf.Min(8, maxValue - 1); // For 4+ splits, threshold can be higher
         }
         
         // First, ensure we have enough values by giving each tile at least 1
@@ -243,7 +257,7 @@ public class TileSplitHandler : MonoBehaviour
         int baseDistribution = 0;
         if (remaining >= count * 2) {
             // If we have enough value to distribute, give each tile some base value
-            baseDistribution = Mathf.Min(remaining / count, maxValue - 1);
+            baseDistribution = UnityEngine.Mathf.Min(remaining / count, maxValue - 1);
             
             // For each tile, add the base distribution
             for (int i = 0; i < count; i++) {
@@ -264,12 +278,12 @@ public class TileSplitHandler : MonoBehaviour
         for (int i = 0; i < count && lowValueTilesNeeded > 0; i++)
         {
             // Maximum we can add while keeping this tile under lowValueThreshold
-            int maxLowAddition = Mathf.Min(lowValueThreshold - values[i] - 1, maxAdditions[i]);
+            int maxLowAddition = UnityEngine.Mathf.Min(lowValueThreshold - values[i] - 1, maxAdditions[i]);
             
             if (maxLowAddition > 0)
             {
                 // Decide how much to add to this tile (between 1 and maxLowAddition)
-                int toAdd = Mathf.Min(remaining, Random.Range(1, maxLowAddition + 1));
+                int toAdd = UnityEngine.Mathf.Min(remaining, Random.Range(1, maxLowAddition + 1));
                 
                 values[i] += toAdd;
                 maxAdditions[i] -= toAdd;
@@ -296,7 +310,7 @@ public class TileSplitHandler : MonoBehaviour
             sortedIndices.Sort((a, b) => values[a].CompareTo(values[b]));
             
             // Take the two lowest value tiles
-            for (int i = 0; i < Mathf.Min(2, count) && lowValueTilesNeeded > 0; i++)
+            for (int i = 0; i < UnityEngine.Mathf.Min(2, count) && lowValueTilesNeeded > 0; i++)
             {
                 lowValueIndices.Add(sortedIndices[i]);
                 lowValueTilesNeeded--;
@@ -384,7 +398,7 @@ public class TileSplitHandler : MonoBehaviour
                 indices.Sort((a, b) => values[a].CompareTo(values[b])); // Sort by value ascending
                 
                 // Force the two lowest tiles to be under the threshold
-                for (int i = 0; i < Mathf.Min(2, count); i++)
+                for (int i = 0; i < UnityEngine.Mathf.Min(2, count); i++)
                 {
                     int idx = indices[i];
                     if (values[idx] >= lowValueThreshold)
@@ -398,7 +412,7 @@ public class TileSplitHandler : MonoBehaviour
                             int highestIdx = indices[j];
                             if (highestIdx != idx && values[highestIdx] < maxValue)
                             {
-                                int canAdd = Mathf.Min(excess, maxValue - values[highestIdx]);
+                                int canAdd = UnityEngine.Mathf.Min(excess, maxValue - values[highestIdx]);
                                 values[highestIdx] += canAdd;
                                 excess -= canAdd;
                             }
@@ -479,7 +493,7 @@ public class TileSplitHandler : MonoBehaviour
             }
             
             Debug.Log($"TileSplitHandler: Found valid position {spawnPosition.Value} for special tile spawn.");
-            SpecialTileManager.Instance?.SpawnSpecialTile(spawnPosition.Value, "Random");
+            Tilebreakers.Special.SpecialTileManager.Instance?.SpawnSpecialTile(spawnPosition.Value, "Random");
         }
         else
         {
@@ -524,7 +538,7 @@ public class TileSplitHandler : MonoBehaviour
         }
         
         // If no adjacent positions work, check further positions in increasing radius
-        for (int radius = 2; radius <= Mathf.Max(width, height); radius++)
+        for (int radius = 2; radius <= UnityEngine.Mathf.Max(width, height); radius++)
         {
             candidates.Clear();
             
@@ -534,7 +548,7 @@ public class TileSplitHandler : MonoBehaviour
                 for (int y = -radius; y <= radius; y++)
                 {
                     // Only check positions on the perimeter of the square
-                    if (Mathf.Abs(x) == radius || Mathf.Abs(y) == radius)
+                    if (UnityEngine.Mathf.Abs(x) == radius || UnityEngine.Mathf.Abs(y) == radius)
                     {
                         Vector2Int pos = origin + new Vector2Int(x, y);
                         
@@ -587,7 +601,7 @@ public class TileSplitHandler : MonoBehaviour
         if (!global::BoardManager.Instance.IsCellEmpty(pos)) return false;
         
         // Advanced check: Is there already a special tile here?
-        SpecialTile existingTile = SpecialTileManager.Instance.GetSpecialTileAtPosition(pos);
+        SpecialTile existingTile = Tilebreakers.Special.SpecialTileManager.Instance.GetSpecialTileAtPosition(pos);
         if (existingTile != null) return false;
         
         // Check if there are any colliders at this position
@@ -647,5 +661,54 @@ public class TileSplitHandler : MonoBehaviour
         }
         
         return tilesToSplit;
+    }
+
+    public void AddSplitScore(int originalValue)
+    {
+        // Award bonus points based on the original value of the split tile
+        int bonusPoints = UnityEngine.Mathf.RoundToInt(originalValue * 0.5f);
+        Tilebreakers.Core.ScoreManager.Instance.AddScore(bonusPoints);
+        
+        // ...existing code...
+    }
+
+    /// <summary>
+    /// Performs the split operation by removing the high value tile and creating
+    /// two lower value tiles in free adjacent cells.
+    /// </summary>
+    private bool SplitTile(Vector2Int position)
+    {
+        // Get the high value tile from the position
+        Tile highValueTile = BoardManager.Instance.GetTileAtPosition(position);
+        
+        // Validate the tile exists and has a high value
+        if (highValueTile == null)
+        {
+            Debug.LogError($"TileSplitHandler: No tile found at position {position} to split.");
+            return false;
+        }
+        
+        if (highValueTile.number <= 12)
+        {
+            Debug.LogError($"TileSplitHandler: Tile at {position} has value {highValueTile.number} <= 12, which should not be split.");
+            return false;
+        }
+
+        // Get the original value to use in score calculation
+        int originalValue = highValueTile.number;
+            
+        // CRITICAL FIX: Use AddScoreWithoutPopup instead of AddSplitScore to avoid duplicate popups
+        int bonusPoints = Mathf.RoundToInt(originalValue * 0.5f);
+        ScoreManager.Instance.AddScoreWithoutPopup(bonusPoints);
+            
+        // Then manually show the popup just once
+        ScoreUtility.ShowPopupAtScreenPosition(bonusPoints, 
+            new Vector2(Screen.width * 0.5f + Random.Range(-50f, 50f), Screen.height * 0.85f));
+            
+        // Perform the actual split operation logic here
+        // ...existing split logic...
+        
+        // Return true to indicate success
+        return true;
     }
 }

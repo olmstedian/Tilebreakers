@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
+using Tilebreakers.Special; // Add this namespace to access SpecialTileManager
 
 /// <summary>
 /// Utility class for repairing and diagnosing board state issues.

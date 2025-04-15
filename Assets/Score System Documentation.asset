@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e676b30f0c94e4f6680845db48016436, type: 3}
+  m_Name: Score System Documentation
+  m_EditorClassIdentifier: 
+  logo: {fileID: 0}
+  title: Score System Overview
+  description: "TILEBREAKERS SCORE SYSTEM\n-----------------------\n\nThe score system
+    consists of three core components:\n\n1. ScoreManager (Singleton)\n   - Handles
+    score tracking, saving, and loading\n   - Manages score events and high score\n  
+    - Maintains game-specific score rules\n\n2. ScoreUtility (Static)\n   - Provides
+    utility methods for score operations\n   - Handles score popup creation and animation\n  
+    - Acts as a centralized API for other systems\n\n3. UI Components\n   - ScoreDisplayUI:
+    Displays score in the UI\n   - ScorePopup: Individual score popups\n\nHOW TO
+    USE\n----------\n\n1. Adding points:\n   ScoreManager.Instance.AddScore(100);\n  
+    \n2. Showing a score popup:\n   ScoreUtility.ShowPopupAtScreenPosition(100, position);\n  
+    \n3. Adding points with popup:\n   ScoreUtility.AddPointsWithPopup(100, worldPosition);\n  
+    \n4. Testing popups:\n   ScoreUtility.ShowTestPopups(5);\n\nADDITIONAL INFO\n--------------\n-
+    Score popups always appear at the top of the screen\n- Score values are saved
+    automatically\n- Popups show only the point value (e.g., +100)"
+  showLogo: 1
